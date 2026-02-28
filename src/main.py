@@ -18,6 +18,9 @@ from .bulk_processor import process_bulk, write_output, BulkProgress
 
 app = FastAPI(title="SuperRecruit", version="1.0.0")
 
+# In-memory store for bulk jobs
+_bulk_jobs: dict[str, BulkProgress] = {}
+
 BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "..", "data", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -220,6 +223,53 @@ async def submit_assessment(token: str, request: Request):
 
     complete_session(token)
     return {"status": "completed"}
+
+
+# ── Bulk Upload ──
+
+@app.get("/bulk", response_class=HTMLResponse)
+async def bulk_upload_page(request: Request):
+    return templates.TemplateResponse("bulk_upload.html", {"request": request})
+
+
+def _run_bulk_job(job_id: str, zip_path: str, output_dir: str):
+    """Background task for bulk processing."""
+    progress = _bulk_jobs[job_id]
+    try:
+        process_bulk(zip_path, progress=progress)
+        write_output(progress, output_dir)
+    except Exception as e:
+        progress.status = "failed"
+    finally:
+        # Clean up uploaded zip
+        if os.path.exists(zip_path):
+            os.unlink(zip_path)
+
+
+@app.post("/api/bulk")
+async def bulk_upload(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(400, "Please upload a .zip file")
+
+    job_id = str(uuid.uuid4())
+    # Save zip
+    zip_path = os.path.join(UPLOAD_DIR, f"bulk_{job_id}.zip")
+    with open(zip_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    output_dir = os.path.join(UPLOAD_DIR, f"bulk_{job_id}_results")
+    _bulk_jobs[job_id] = BulkProgress()
+    background_tasks.add_task(_run_bulk_job, job_id, zip_path, output_dir)
+
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.get("/api/bulk/{job_id}")
+async def bulk_status(job_id: str):
+    progress = _bulk_jobs.get(job_id)
+    if not progress:
+        raise HTTPException(404, "Job not found")
+    return progress.to_dict()
 
 
 @app.get("/api/test-bank")

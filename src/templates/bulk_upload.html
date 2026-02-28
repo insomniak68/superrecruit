@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Bulk Upload — SuperRecruit{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">📦 Bulk Resume Upload</h1>
+
+    <div id="upload-section" class="bg-white rounded-lg shadow p-6 mb-6">
+        <p class="text-gray-600 mb-4">Upload a <strong>.zip</strong> file containing PDF resumes. Each will be processed through the full pipeline.</p>
+        <form id="upload-form" class="space-y-4">
+            <input type="file" id="zip-file" accept=".zip" required
+                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">
+                Upload & Process
+            </button>
+        </form>
+    </div>
+
+    <div id="progress-section" class="bg-white rounded-lg shadow p-6 hidden">
+        <h2 class="text-lg font-semibold mb-3">Processing…</h2>
+        <div class="mb-2">
+            <div class="w-full bg-gray-200 rounded-full h-4">
+                <div id="progress-bar" class="bg-indigo-600 h-4 rounded-full transition-all" style="width:0%"></div>
+            </div>
+        </div>
+        <p id="progress-text" class="text-sm text-gray-600">Starting…</p>
+    </div>
+
+    <div id="results-section" class="bg-white rounded-lg shadow p-6 hidden">
+        <h2 class="text-lg font-semibold mb-3 text-green-700">✅ Complete</h2>
+        <div id="results-summary" class="text-sm text-gray-700 mb-4"></div>
+        <table class="w-full text-sm">
+            <thead><tr class="border-b"><th class="text-left py-1">File</th><th>Name</th><th>Skills</th><th>Tests</th><th>Status</th></tr></thead>
+            <tbody id="results-table"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+let jobId = null;
+const form = document.getElementById('upload-form');
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = document.getElementById('zip-file').files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    document.getElementById('upload-section').classList.add('hidden');
+    document.getElementById('progress-section').classList.remove('hidden');
+    const res = await fetch('/api/bulk', { method: 'POST', body: fd });
+    const data = await res.json();
+    jobId = data.job_id;
+    pollStatus();
+});
+
+async function pollStatus() {
+    const res = await fetch(`/api/bulk/${jobId}`);
+    const d = await res.json();
+    const done = d.processed + d.failed;
+    const pct = d.total ? Math.round(done / d.total * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = `${done}/${d.total} processed (${d.failed} failed) — ${d.status}`;
+
+    if (d.status === 'completed' || d.status === 'failed') {
+        document.getElementById('progress-section').classList.add('hidden');
+        document.getElementById('results-section').classList.remove('hidden');
+        document.getElementById('results-summary').textContent = `Total: ${d.total} | Success: ${d.processed} | Failed: ${d.failed}`;
+        const tbody = document.getElementById('results-table');
+        tbody.innerHTML = d.results.map(r => `<tr class="border-b">
+            <td class="py-1">${r.filename}</td>
+            <td>${r.candidate_name}</td>
+            <td>${r.skills_count}</td>
+            <td>${r.tests_assigned}</td>
+            <td class="${r.status === 'success' ? 'text-green-600' : 'text-red-600'}">${r.status}</td>
+        </tr>`).join('');
+    } else {
+        setTimeout(pollStatus, 1500);
+    }
+}
+</script>
+{% endblock %}
