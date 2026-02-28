@@ -48,4 +48,10 @@ def extract_skills(resume_text: str) -> list[SkillAssessment]:
             llm_confidence=float(s["confidence"]),
             reasoning=s.get("reasoning", ""),
         ))
+    # Enrich with knowledge base
+    try:
+        from .knowledge_base import enrich_with_knowledge_base
+        skills = enrich_with_knowledge_base(skills)
+    except Exception:
+        pass  # KB enrichment is optional — don't break extraction
     return skills

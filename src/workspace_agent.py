@@ -32,7 +32,9 @@ To modify the analysis, include a fenced JSON block like this in your response:
   {{"action": "add_skill", "skill_name": "Docker", "category": "devops", "confidence": 0.6, "evidence": "Mentioned in project descriptions"}},
   {{"action": "remove_skill", "skill_name": "COBOL"}},
   {{"action": "set_note", "skill_name": "Python", "note": "Strong evidence from multiple projects"}},
-  {{"action": "add_equivalency", "skill_name": "React", "equivalent_to": "Frontend Development"}}
+  {{"action": "add_equivalency", "skill_name": "React", "equivalent_to": "Frontend Development"}},
+  {{"action": "learn_skill_concept", "name": "React Native", "category": "framework", "description": "Cross-platform mobile framework"}},
+  {{"action": "learn_equivalency", "skill_name": "React.js", "equivalent_to": "React", "strength": 1.0}}
 ]
 ```
 
@@ -74,12 +76,20 @@ def _parse_actions(text: str) -> tuple[str, list[dict]]:
 
 def chat(candidate: dict, skills: list[dict], history: list[dict], user_message: str) -> tuple[str, list[dict]]:
     """Process a chat message. Returns (display_message, actions)."""
+    # Add knowledge base context
+    kb_context = ""
+    try:
+        from .knowledge_base import get_skills_context
+        kb_context = get_skills_context()
+    except Exception:
+        pass
+
     system = SYSTEM_PROMPT_TEMPLATE.format(
         name=candidate.get("name", "Unknown"),
         email=candidate.get("email", ""),
         resume_text=candidate.get("resume_text", "(no resume text)"),
         skills_summary=_build_skills_summary(skills),
-    )
+    ) + kb_context
 
     messages = []
     for h in history:

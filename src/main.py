@@ -362,6 +362,25 @@ async def workspace_chat(cid: int, request: Request):
             if skill_name:
                 conn.execute("DELETE FROM skill_assessments WHERE candidate_id=? AND skill_name=?", (cid, skill_name))
                 executed.append(act)
+        elif action_type == "learn_skill_concept":
+            from .knowledge_base import SkillConcept, create_skill_concept, get_skill_by_canonical
+            sk_name = act.get("name", "")
+            if sk_name and not get_skill_by_canonical(sk_name.lower().strip()):
+                create_skill_concept(SkillConcept(
+                    name=sk_name, category=act.get("category", "other"),
+                    description=act.get("description", "")
+                ))
+                executed.append(act)
+        elif action_type == "learn_equivalency":
+            from .knowledge_base import SkillRelation, create_skill_relation, get_skill_by_canonical
+            src = get_skill_by_canonical(act.get("skill_name", "").lower().strip())
+            tgt = get_skill_by_canonical(act.get("equivalent_to", "").lower().strip())
+            if src and tgt:
+                create_skill_relation(SkillRelation(
+                    source_skill_id=src.id, target_skill_id=tgt.id,
+                    relation_type="equivalent", strength=float(act.get("strength", 1.0)), source="ai"
+                ))
+                executed.append(act)
         elif action_type == "set_note":
             skill_name = act.get("skill_name")
             note = act.get("note")
@@ -428,6 +447,177 @@ async def add_skill(cid: int, request: Request):
     row = conn.execute("SELECT * FROM skill_assessments WHERE id=?", (cur.lastrowid,)).fetchone()
     conn.close()
     return dict(row)
+
+
+# ── Knowledge Base Routes ──
+
+from .knowledge_base import (
+    SkillConcept, SkillRelation, RoleArchetype, EmployerInterpretation,
+    create_skill_concept, get_skill_concept, list_skill_concepts, update_skill_concept, delete_skill_concept,
+    create_skill_relation, get_skill_relations, delete_skill_relation,
+    create_role_archetype, get_role_archetype, list_role_archetypes, update_role_archetype, delete_role_archetype,
+    create_employer_interpretation, get_employer_interpretation, list_employer_interpretations,
+    update_employer_interpretation, delete_employer_interpretation,
+    search_knowledge_base, export_knowledge_base, import_knowledge_base,
+)
+
+
+@app.get("/knowledge-base", response_class=HTMLResponse)
+async def knowledge_base_page(request: Request):
+    return templates.TemplateResponse("knowledge_base.html", {"request": request})
+
+
+# Skills CRUD
+@app.get("/api/kb/skills")
+async def kb_list_skills():
+    return [s.model_dump() for s in list_skill_concepts()]
+
+
+@app.post("/api/kb/skills")
+async def kb_create_skill(request: Request):
+    body = await request.json()
+    skill = SkillConcept(**body)
+    return create_skill_concept(skill).model_dump()
+
+
+@app.get("/api/kb/skills/{skill_id}")
+async def kb_get_skill(skill_id: int):
+    s = get_skill_concept(skill_id)
+    if not s:
+        raise HTTPException(404, "Skill concept not found")
+    s_dict = s.model_dump()
+    s_dict["relations"] = [r.model_dump() for r in get_skill_relations(skill_id)]
+    return s_dict
+
+
+@app.patch("/api/kb/skills/{skill_id}")
+async def kb_update_skill(skill_id: int, request: Request):
+    body = await request.json()
+    s = update_skill_concept(skill_id, body)
+    if not s:
+        raise HTTPException(404, "Skill concept not found")
+    return s.model_dump()
+
+
+@app.delete("/api/kb/skills/{skill_id}")
+async def kb_delete_skill(skill_id: int):
+    if not delete_skill_concept(skill_id):
+        raise HTTPException(404, "Skill concept not found")
+    return {"ok": True}
+
+
+# Skill Relations
+@app.post("/api/kb/skills/{skill_id}/relations")
+async def kb_create_relation(skill_id: int, request: Request):
+    body = await request.json()
+    body["source_skill_id"] = skill_id
+    rel = SkillRelation(**body)
+    return create_skill_relation(rel).model_dump()
+
+
+@app.delete("/api/kb/relations/{relation_id}")
+async def kb_delete_relation(relation_id: int):
+    if not delete_skill_relation(relation_id):
+        raise HTTPException(404)
+    return {"ok": True}
+
+
+# Roles CRUD
+@app.get("/api/kb/roles")
+async def kb_list_roles():
+    return [r.model_dump() for r in list_role_archetypes()]
+
+
+@app.post("/api/kb/roles")
+async def kb_create_role(request: Request):
+    body = await request.json()
+    role = RoleArchetype(**body)
+    return create_role_archetype(role).model_dump()
+
+
+@app.get("/api/kb/roles/{role_id}")
+async def kb_get_role(role_id: int):
+    r = get_role_archetype(role_id)
+    if not r:
+        raise HTTPException(404, "Role archetype not found")
+    return r.model_dump()
+
+
+@app.patch("/api/kb/roles/{role_id}")
+async def kb_update_role(role_id: int, request: Request):
+    body = await request.json()
+    r = update_role_archetype(role_id, body)
+    if not r:
+        raise HTTPException(404)
+    return r.model_dump()
+
+
+@app.delete("/api/kb/roles/{role_id}")
+async def kb_delete_role(role_id: int):
+    if not delete_role_archetype(role_id):
+        raise HTTPException(404)
+    return {"ok": True}
+
+
+# Employer Interpretations
+@app.get("/api/kb/roles/{role_id}/employers")
+async def kb_list_employers(role_id: int):
+    return [e.model_dump() for e in list_employer_interpretations(role_id)]
+
+
+@app.post("/api/kb/roles/{role_id}/employers")
+async def kb_create_employer(role_id: int, request: Request):
+    body = await request.json()
+    body["role_archetype_id"] = role_id
+    ei = EmployerInterpretation(**body)
+    return create_employer_interpretation(ei).model_dump()
+
+
+@app.get("/api/kb/roles/{role_id}/employers/{ei_id}")
+async def kb_get_employer(role_id: int, ei_id: int):
+    e = get_employer_interpretation(ei_id)
+    if not e or e.role_archetype_id != role_id:
+        raise HTTPException(404)
+    return e.model_dump()
+
+
+@app.patch("/api/kb/roles/{role_id}/employers/{ei_id}")
+async def kb_update_employer(role_id: int, ei_id: int, request: Request):
+    body = await request.json()
+    e = update_employer_interpretation(ei_id, body)
+    if not e:
+        raise HTTPException(404)
+    return e.model_dump()
+
+
+@app.delete("/api/kb/roles/{role_id}/employers/{ei_id}")
+async def kb_delete_employer(role_id: int, ei_id: int):
+    if not delete_employer_interpretation(ei_id):
+        raise HTTPException(404)
+    return {"ok": True}
+
+
+# Search
+@app.get("/api/kb/search")
+async def kb_search(q: str = ""):
+    if not q:
+        return {"skills": [], "roles": []}
+    results = search_knowledge_base(q)
+    return {"skills": [s.model_dump() for s in results["skills"]],
+            "roles": [r.model_dump() for r in results["roles"]]}
+
+
+# Export/Import
+@app.get("/api/kb/export")
+async def kb_export():
+    return export_knowledge_base()
+
+
+@app.post("/api/kb/import")
+async def kb_import(request: Request):
+    body = await request.json()
+    stats = import_knowledge_base(body)
+    return stats
 
 
 if __name__ == "__main__":

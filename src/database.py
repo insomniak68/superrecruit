@@ -81,6 +81,71 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (candidate_id) REFERENCES candidates(id)
     );
+    CREATE TABLE IF NOT EXISTS skill_concepts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        canonical_name TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        category TEXT DEFAULT 'other',
+        subconcepts TEXT DEFAULT '[]',
+        competency_signals TEXT DEFAULT '{}',
+        version INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS skill_relations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_skill_id INTEGER NOT NULL,
+        target_skill_id INTEGER NOT NULL,
+        relation_type TEXT NOT NULL,
+        strength REAL DEFAULT 1.0,
+        source TEXT DEFAULT 'system',
+        FOREIGN KEY (source_skill_id) REFERENCES skill_concepts(id),
+        FOREIGN KEY (target_skill_id) REFERENCES skill_concepts(id)
+    );
+    CREATE TABLE IF NOT EXISTS role_archetypes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        canonical_name TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        career_paths TEXT DEFAULT '[]',
+        green_flags TEXT DEFAULT '[]',
+        red_flags TEXT DEFAULT '[]',
+        version INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS role_archetype_skills (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        role_archetype_id INTEGER NOT NULL,
+        skill_concept_id INTEGER NOT NULL,
+        min_confidence REAL DEFAULT 0.0,
+        weight REAL DEFAULT 1.0,
+        is_core INTEGER DEFAULT 1,
+        FOREIGN KEY (role_archetype_id) REFERENCES role_archetypes(id),
+        FOREIGN KEY (skill_concept_id) REFERENCES skill_concepts(id)
+    );
+    CREATE TABLE IF NOT EXISTS employer_interpretations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        role_archetype_id INTEGER NOT NULL,
+        employer_name TEXT DEFAULT 'anonymous',
+        equivalency_prefs TEXT DEFAULT '{}',
+        notes TEXT DEFAULT '',
+        learned_from TEXT DEFAULT '[]',
+        version INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (role_archetype_id) REFERENCES role_archetypes(id)
+    );
+    CREATE TABLE IF NOT EXISTS employer_skill_overrides (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employer_interpretation_id INTEGER NOT NULL,
+        skill_concept_id INTEGER NOT NULL,
+        priority TEXT DEFAULT 'normal',
+        weight_override REAL,
+        FOREIGN KEY (employer_interpretation_id) REFERENCES employer_interpretations(id),
+        FOREIGN KEY (skill_concept_id) REFERENCES skill_concepts(id)
+    );
     CREATE TABLE IF NOT EXISTS skill_overrides (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         candidate_id INTEGER NOT NULL,
