@@ -48,6 +48,11 @@ spec:
           env:
             - name: SR_DB_PATH
               value: /data/superrecruit.db
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: superrecruit-api-key
+                  key: ANTHROPIC_API_KEY
           volumeMounts:
             - name: app
               mountPath: /app
