@@ -6,7 +6,7 @@
 
 <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="text-lg font-semibold mb-4">Recommended Tests</h2>
-    <p class="text-sm text-gray-600 mb-4">Based on MEDIUM and LOW confidence skills, these tests are recommended:</p>
+    <p class="text-sm text-gray-600 mb-4">Based on skills with confidence below 80%, these tests are recommended:</p>
 
     {% if tests %}
     <form id="sendForm" class="space-y-3">
@@ -26,7 +26,7 @@
         </button>
     </form>
     {% else %}
-    <p class="text-gray-500">No matching tests found. All skills are HIGH confidence or no tests match.</p>
+    <p class="text-gray-500">No matching tests found. All skills are ≥80% confidence or no tests match.</p>
     {% endif %}
 </div>
 

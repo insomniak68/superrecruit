@@ -19,12 +19,12 @@
                         <span class="font-medium">{{ s.skill_name }}</span>
                         <div class="flex gap-2">
                             {% set conf = s.final_confidence or s.llm_confidence %}
-                            {% if conf == 'HIGH' %}
-                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">HIGH</span>
-                            {% elif conf == 'MEDIUM' %}
-                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">MEDIUM</span>
+                            {% if conf >= 0.8 %}
+                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">{{ (conf * 100)|int }}%</span>
+                            {% elif conf >= 0.4 %}
+                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">{{ (conf * 100)|int }}%</span>
                             {% else %}
-                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">LOW</span>
+                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">{{ (conf * 100)|int }}%</span>
                             {% endif %}
                             <span class="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">{{ s.category }}</span>
                         </div>

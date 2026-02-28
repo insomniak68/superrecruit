@@ -1,21 +1,21 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
-from enum import Enum
-
-
-class Confidence(str, Enum):
-    HIGH = "HIGH"
-    MEDIUM = "MEDIUM"
-    LOW = "LOW"
 
 
 class SkillAssessment(BaseModel):
     skill_name: str
     category: str
     evidence: str
-    llm_confidence: Confidence
-    final_confidence: Optional[Confidence] = None
+    llm_confidence: float
+    final_confidence: Optional[float] = None
     reasoning: str
+
+    @field_validator("llm_confidence", "final_confidence", mode="before")
+    @classmethod
+    def clamp_confidence(cls, v):
+        if v is None:
+            return v
+        return max(0.0, min(1.0, float(v)))
 
 
 class CandidateCreate(BaseModel):

@@ -1,7 +1,7 @@
 import json
 import os
 import anthropic
-from .models import SkillAssessment, Confidence
+from .models import SkillAssessment
 
 API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
@@ -12,10 +12,10 @@ For each skill, provide:
 1. skill_name: The specific skill
 2. category: One of [programming, framework, database, cloud, devops, methodology, soft_skill, design, data, security, other]
 3. evidence: Direct quotes or references from the resume supporting this skill
-4. confidence: HIGH, MEDIUM, or LOW
-   - HIGH: Years of relevant experience, matching job titles, certifications
-   - MEDIUM: Mentioned in context but ambiguous (short tenure, tangential role)
-   - LOW: Listed in skills section but never referenced in experience
+4. confidence: A numeric score from 0.0 to 1.0
+   - 0.8–1.0: Years of relevant experience, matching job titles, certifications
+   - 0.4–0.7: Mentioned in context but ambiguous (short tenure, tangential role)
+   - 0.0–0.3: Listed in skills section but never referenced in experience
 5. reasoning: Why you assigned this confidence level
 
 Return ONLY a JSON array of objects with these fields. No markdown, no explanation.
@@ -45,7 +45,7 @@ def extract_skills(resume_text: str) -> list[SkillAssessment]:
             skill_name=s["skill_name"],
             category=s.get("category", "other"),
             evidence=s.get("evidence", ""),
-            llm_confidence=Confidence(s["confidence"]),
+            llm_confidence=float(s["confidence"]),
             reasoning=s.get("reasoning", ""),
         ))
     return skills

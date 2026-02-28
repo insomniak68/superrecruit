@@ -1,6 +1,6 @@
 import os
 import yaml
-from .models import SkillAssessment, Confidence, TestBank
+from .models import SkillAssessment, TestBank
 
 TEST_BANK_DIR = os.path.join(os.path.dirname(__file__), "test_bank")
 
@@ -22,7 +22,7 @@ def select_tests(skills: list[SkillAssessment]) -> list[TestBank]:
 
     for skill in skills:
         conf = skill.final_confidence or skill.llm_confidence
-        if conf == Confidence.HIGH:
+        if conf >= 0.8:
             continue
         skill_lower = skill.skill_name.lower()
         found = False

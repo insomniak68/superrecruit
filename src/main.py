@@ -1,8 +1,10 @@
 import os
 import json
 import shutil
-from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+import uuid
+import tempfile
+from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException, BackgroundTasks
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from .database import init_db, get_db
@@ -12,6 +14,7 @@ from .confidence_scorer import score_confidence
 from .test_selector import select_tests, load_test_bank
 from .assessment import create_session, get_session_by_token, start_session, complete_session, save_submission, get_submissions
 from .email_service import send_assessment_email
+from .bulk_processor import process_bulk, write_output, BulkProgress
 
 app = FastAPI(title="SuperRecruit", version="1.0.0")
 
@@ -77,11 +80,11 @@ async def assessment_setup(request: Request, cid: int):
     conn.close()
     if not candidate:
         raise HTTPException(404)
-    from .models import SkillAssessment, Confidence
+    from .models import SkillAssessment
     skill_objs = [SkillAssessment(
         skill_name=s["skill_name"], category=s["category"] or "other",
-        evidence=s["evidence"] or "", llm_confidence=Confidence(s["llm_confidence"]),
-        final_confidence=Confidence(s["final_confidence"]) if s["final_confidence"] else None,
+        evidence=s["evidence"] or "", llm_confidence=float(s["llm_confidence"]),
+        final_confidence=float(s["final_confidence"]) if s["final_confidence"] else None,
         reasoning=s["reasoning"] or ""
     ) for s in skills]
     tests = select_tests(skill_objs)
