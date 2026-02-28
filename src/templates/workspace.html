@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}Workspace — {{ candidate.name }}{% endblock %}
+{% block head %}
+<style>
+    .workspace-container { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 1rem; height: calc(100vh - 8rem); }
+    .panel { display: flex; flex-direction: column; overflow: hidden; }
+    .panel-body { flex: 1; overflow-y: auto; }
+    .confidence-bar { cursor: pointer; transition: all 0.2s; }
+    .confidence-bar:hover { opacity: 0.8; }
+    .chat-bubble-user { background: #4f46e5; color: white; }
+    .chat-bubble-ai { background: #f3f4f6; color: #1f2937; }
+    .skill-card.irrelevant { opacity: 0.5; }
+    .skill-card { transition: all 0.3s ease; }
+    .skill-card.flash { animation: flash 0.5s ease; }
+    @keyframes flash { 0%,100% { background: white; } 50% { background: #c7d2fe; } }
+    .search-highlight { background: #fbbf24; padding: 1px 2px; border-radius: 2px; }
+    @media (max-width: 1024px) {
+        .workspace-container { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; }
+        .panel { max-height: 60vh; }
+        .panel.collapsed .panel-body { display: none; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="mb-3 flex items-center justify-between">
+    <div>
+        <a href="/candidates/{{ candidate.id }}" class="text-indigo-600 hover:underline text-sm">← Back to {{ candidate.name }}</a>
+        <h1 class="text-xl font-bold">Analysis Workspace</h1>
+    </div>
+    <span class="text-sm text-gray-500">{{ candidate.name }} · {{ candidate.email }}</span>
+</div>
+
+<div class="workspace-container">
+    <!-- LEFT: Resume Viewer -->
+    <div class="panel bg-white rounded-lg shadow">
+        <div class="p-3 border-b flex items-center justify-between">
+            <h2 class="font-semibold text-sm">📄 Resume</h2>
+            <button onclick="this.closest('.panel').classList.toggle('collapsed')" class="lg:hidden text-gray-400 text-xs">toggle</button>
+        </div>
+        <div class="p-3 border-b">
+            <input type="text" id="resume-search" placeholder="Search resume..." class="w-full px-3 py-1.5 border rounded text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+        </div>
+        <div class="panel-body p-4">
+            <pre id="resume-text" class="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">{{ candidate.resume_text or '(No resume text available)' }}</pre>
+        </div>
+    </div>
+
+    <!-- CENTER: Live Analysis -->
+    <div class="panel bg-white rounded-lg shadow">
+        <div class="p-3 border-b flex items-center justify-between">
+            <h2 class="font-semibold text-sm">🎯 Skills Analysis</h2>
+            <button onclick="document.getElementById('add-skill-form').classList.toggle('hidden')" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700">+ Add Skill</button>
+        </div>
+        <div id="add-skill-form" class="hidden p-3 border-b bg-gray-50">
+            <div class="flex gap-2">
+                <input type="text" id="new-skill-name" placeholder="Skill name" class="flex-1 px-2 py-1 border rounded text-sm">
+                <select id="new-skill-category" class="px-2 py-1 border rounded text-sm">
+                    <option value="language">Language</option>
+                    <option value="framework">Framework</option>
+                    <option value="tool">Tool</option>
+                    <option value="concept">Concept</option>
+                    <option value="soft_skill">Soft Skill</option>
+                    <option value="other">Other</option>
+                </select>
+                <button onclick="addSkill()" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">Add</button>
+            </div>
+        </div>
+        <div class="panel-body p-3" id="skills-container">
+            {% for s in skills %}
+            {% set conf = s.final_confidence or s.llm_confidence or 0 %}
+            {% set conf_f = conf|float %}
+            <div class="skill-card border rounded-lg p-3 mb-2 {{ 'irrelevant' if s.category == 'irrelevant' }}" data-skill-id="{{ s.id }}" data-skill-name="{{ s.skill_name }}">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-sm">{{ s.skill_name }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{{ s.category }}</span>
+                        <button onclick="toggleIrrelevant({{ s.id }}, '{{ s.category }}')" class="text-xs text-gray-400 hover:text-red-500" title="Mark irrelevant">✕</button>
+                        <button onclick="markImportant({{ s.id }})" class="text-xs text-gray-400 hover:text-yellow-500" title="Mark important">⭐</button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="confidence-bar flex-1 h-2 bg-gray-200 rounded-full overflow-hidden" onclick="editConfidence({{ s.id }}, event)">
+                        <div class="h-full rounded-full transition-all {{ 'bg-green-500' if conf_f >= 0.7 else ('bg-yellow-500' if conf_f >= 0.4 else 'bg-red-500') }}" style="width: {{ (conf_f * 100)|int }}%"></div>
+                    </div>
+                    <span class="text-xs font-mono text-gray-500 conf-label">{{ (conf_f * 100)|int }}%</span>
+                </div>
+                {% if s.evidence %}
+                <p class="text-xs text-gray-400 truncate">{{ s.evidence[:150] }}</p>
+                {% endif %}
+                {% if s.reasoning %}
+                <p class="text-xs text-gray-500 mt-1">{{ s.reasoning[:200] }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% if not skills %}
+            <p class="text-gray-400 text-sm text-center py-8">No skills extracted yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- RIGHT: Chat -->
+    <div class="panel bg-white rounded-lg shadow">
+        <div class="p-3 border-b">
+            <h2 class="font-semibold text-sm">💬 AI Assistant</h2>
+        </div>
+        <div class="panel-body p-3 space-y-3" id="chat-history">
+            {% for msg in history %}
+            <div class="flex {{ 'justify-end' if msg.role == 'user' else 'justify-start' }}">
+                <div class="max-w-[85%] px-3 py-2 rounded-lg text-sm {{ 'chat-bubble-user' if msg.role == 'user' else 'chat-bubble-ai' }}">
+                    {{ msg.content }}
+                </div>
+            </div>
+            {% endfor %}
+            {% if not history %}
+            <div class="text-center text-gray-400 text-sm py-8" id="chat-placeholder">
+                Ask questions about this candidate's skills, request score adjustments, or explore their qualifications.
+            </div>
+            {% endif %}
+        </div>
+        <div class="p-3 border-t">
+            <div class="flex gap-2">
+                <input type="text" id="chat-input" placeholder="Ask about this candidate..." class="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none" onkeydown="if(event.key==='Enter')sendChat()">
+                <button onclick="sendChat()" id="chat-send" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const CID = {{ candidate.id }};
+
+// Resume search
+document.getElementById('resume-search').addEventListener('input', function() {
+    const text = document.getElementById('resume-text');
+    const query = this.value.trim();
+    let content = {{ candidate.resume_text|tojson }};
+    if (query) {
+        const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        content = content.replace(re, '<span class="search-highlight">$1</span>');
+    }
+    text.innerHTML = content;
+});
+
+// Chat
+async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    document.getElementById('chat-send').disabled = true;
+
+    const placeholder = document.getElementById('chat-placeholder');
+    if (placeholder) placeholder.remove();
+
+    appendChat('user', msg);
+
+    try {
+        const res = await fetch(`/api/workspace/${CID}/chat`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: msg})
+        });
+        const data = await res.json();
+        appendChat('assistant', data.message);
+        if (data.skills) refreshSkills(data.skills);
+        if (data.actions && data.actions.length) {
+            data.actions.forEach(a => {
+                const card = document.querySelector(`[data-skill-name="${a.skill_name}"]`);
+                if (card) { card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 600); }
+            });
+        }
+    } catch (e) {
+        appendChat('assistant', 'Error: ' + e.message);
+    }
+    document.getElementById('chat-send').disabled = false;
+    input.focus();
+}
+
+function appendChat(role, text) {
+    const history = document.getElementById('chat-history');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex ' + (role === 'user' ? 'justify-end' : 'justify-start');
+    const bubble = document.createElement('div');
+    bubble.className = 'max-w-[85%] px-3 py-2 rounded-lg text-sm ' + (role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai');
+    bubble.textContent = text;
+    wrapper.appendChild(bubble);
+    history.appendChild(wrapper);
+    history.scrollTop = history.scrollHeight;
+}
+
+// Skills
+function editConfidence(skillId, event) {
+    const bar = event.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const conf = Math.round(pct * 100) / 100;
+
+    fetch(`/api/workspace/${CID}/skills/${skillId}`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({confidence: conf})
+    }).then(r => r.json()).then(skill => {
+        const card = document.querySelector(`[data-skill-id="${skillId}"]`);
+        if (!card) return;
+        const fill = card.querySelector('.confidence-bar > div');
+        const label = card.querySelector('.conf-label');
+        const p = Math.round(conf * 100);
+        fill.style.width = p + '%';
+        fill.className = 'h-full rounded-full transition-all ' + (conf >= 0.7 ? 'bg-green-500' : conf >= 0.4 ? 'bg-yellow-500' : 'bg-red-500');
+        label.textContent = p + '%';
+        card.classList.add('flash');
+        setTimeout(() => card.classList.remove('flash'), 600);
+    });
+}
+
+function toggleIrrelevant(skillId, currentCategory) {
+    const irrelevant = currentCategory !== 'irrelevant';
+    fetch(`/api/workspace/${CID}/skills/${skillId}`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({irrelevant})
+    }).then(r => r.json()).then(() => location.reload());
+}
+
+function markImportant(skillId) {
+    fetch(`/api/workspace/${CID}/skills/${skillId}`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({note: '⭐ Marked as important'})
+    }).then(r => r.json()).then(skill => {
+        const card = document.querySelector(`[data-skill-id="${skillId}"]`);
+        if (card) { card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 600); }
+    });
+}
+
+async function addSkill() {
+    const name = document.getElementById('new-skill-name').value.trim();
+    const category = document.getElementById('new-skill-category').value;
+    if (!name) return;
+    const res = await fetch(`/api/workspace/${CID}/skills`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({skill_name: name, category, confidence: 0.5})
+    });
+    if (res.ok) location.reload();
+}
+
+function refreshSkills(skills) {
+    // Full re-render of skills panel from data
+    const container = document.getElementById('skills-container');
+    container.innerHTML = '';
+    skills.forEach(s => {
+        const conf = parseFloat(s.final_confidence || s.llm_confidence || 0);
+        const pct = Math.round(conf * 100);
+        const color = conf >= 0.7 ? 'bg-green-500' : conf >= 0.4 ? 'bg-yellow-500' : 'bg-red-500';
+        const irr = s.category === 'irrelevant' ? 'irrelevant' : '';
+        container.innerHTML += `
+        <div class="skill-card border rounded-lg p-3 mb-2 ${irr}" data-skill-id="${s.id}" data-skill-name="${s.skill_name}">
+            <div class="flex items-center justify-between mb-1">
+                <span class="font-medium text-sm">${s.skill_name}</span>
+                <div class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600">${s.category}</span>
+                    <button onclick="toggleIrrelevant(${s.id}, '${s.category}')" class="text-xs text-gray-400 hover:text-red-500" title="Mark irrelevant">✕</button>
+                    <button onclick="markImportant(${s.id})" class="text-xs text-gray-400 hover:text-yellow-500" title="Mark important">⭐</button>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mb-1">
+                <div class="confidence-bar flex-1 h-2 bg-gray-200 rounded-full overflow-hidden" onclick="editConfidence(${s.id}, event)">
+                    <div class="h-full rounded-full transition-all ${color}" style="width: ${pct}%"></div>
+                </div>
+                <span class="text-xs font-mono text-gray-500 conf-label">${pct}%</span>
+            </div>
+            ${s.evidence ? `<p class="text-xs text-gray-400 truncate">${s.evidence.substring(0,150)}</p>` : ''}
+            ${s.reasoning ? `<p class="text-xs text-gray-500 mt-1">${s.reasoning.substring(0,200)}</p>` : ''}
+        </div>`;
+    });
+}
+</script>
+{% endblock %}

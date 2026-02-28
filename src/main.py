@@ -279,6 +279,157 @@ async def get_test_bank():
              "time_limit_minutes": t.time_limit_minutes, "question_count": len(t.questions)} for t in bank]
 
 
+# ── Workspace Routes ──
+
+@app.get("/workspace/{cid}", response_class=HTMLResponse)
+async def workspace(request: Request, cid: int):
+    conn = get_db()
+    candidate = conn.execute("SELECT * FROM candidates WHERE id=?", (cid,)).fetchone()
+    if not candidate:
+        conn.close()
+        raise HTTPException(404, "Candidate not found")
+    skills = conn.execute("SELECT * FROM skill_assessments WHERE candidate_id=?", (cid,)).fetchall()
+    history = conn.execute(
+        "SELECT role, content, actions_json, created_at FROM workspace_conversations WHERE candidate_id=? ORDER BY created_at ASC",
+        (cid,)
+    ).fetchall()
+    conn.close()
+    return templates.TemplateResponse("workspace.html", {
+        "request": request,
+        "candidate": dict(candidate),
+        "skills": [dict(s) for s in skills],
+        "history": [dict(h) for h in history],
+    })
+
+
+@app.post("/api/workspace/{cid}/chat")
+async def workspace_chat(cid: int, request: Request):
+    from .workspace_agent import chat as agent_chat
+    body = await request.json()
+    user_message = body.get("message", "").strip()
+    if not user_message:
+        raise HTTPException(400, "Empty message")
+
+    conn = get_db()
+    candidate = conn.execute("SELECT * FROM candidates WHERE id=?", (cid,)).fetchone()
+    if not candidate:
+        conn.close()
+        raise HTTPException(404)
+    skills = conn.execute("SELECT * FROM skill_assessments WHERE candidate_id=?", (cid,)).fetchall()
+    history = conn.execute(
+        "SELECT role, content FROM workspace_conversations WHERE candidate_id=? ORDER BY created_at ASC",
+        (cid,)
+    ).fetchall()
+
+    display_text, actions = agent_chat(
+        dict(candidate), [dict(s) for s in skills], [dict(h) for h in history], user_message
+    )
+
+    # Save conversation
+    conn.execute(
+        "INSERT INTO workspace_conversations (candidate_id, role, content) VALUES (?,?,?)",
+        (cid, "user", user_message)
+    )
+    conn.execute(
+        "INSERT INTO workspace_conversations (candidate_id, role, content, actions_json) VALUES (?,?,?,?)",
+        (cid, "assistant", display_text, json.dumps(actions) if actions else None)
+    )
+
+    # Execute actions
+    executed = []
+    for act in actions:
+        action_type = act.get("action")
+        if action_type == "adjust_confidence":
+            skill_name = act.get("skill_name")
+            new_conf = act.get("confidence")
+            if skill_name and new_conf is not None:
+                row = conn.execute("SELECT id, final_confidence FROM skill_assessments WHERE candidate_id=? AND skill_name=?", (cid, skill_name)).fetchone()
+                if row:
+                    conn.execute("INSERT INTO skill_overrides (candidate_id, skill_id, field, old_value, new_value, source) VALUES (?,?,?,?,?,?)",
+                                 (cid, row["id"], "final_confidence", str(row["final_confidence"]), str(new_conf), "ai"))
+                    conn.execute("UPDATE skill_assessments SET final_confidence=? WHERE id=?", (new_conf, row["id"]))
+                    executed.append(act)
+        elif action_type == "add_skill":
+            skill_name = act.get("skill_name")
+            if skill_name:
+                conn.execute(
+                    "INSERT INTO skill_assessments (candidate_id, skill_name, category, evidence, llm_confidence, final_confidence, reasoning) VALUES (?,?,?,?,?,?,?)",
+                    (cid, skill_name, act.get("category", "other"), act.get("evidence", ""), act.get("confidence", 0.5), act.get("confidence", 0.5), "Added via workspace chat")
+                )
+                executed.append(act)
+        elif action_type == "remove_skill":
+            skill_name = act.get("skill_name")
+            if skill_name:
+                conn.execute("DELETE FROM skill_assessments WHERE candidate_id=? AND skill_name=?", (cid, skill_name))
+                executed.append(act)
+        elif action_type == "set_note":
+            skill_name = act.get("skill_name")
+            note = act.get("note")
+            if skill_name and note:
+                conn.execute("UPDATE skill_assessments SET reasoning=? WHERE candidate_id=? AND skill_name=?", (note, cid, skill_name))
+                executed.append(act)
+
+    conn.commit()
+
+    # Return updated skills
+    skills = conn.execute("SELECT * FROM skill_assessments WHERE candidate_id=?", (cid,)).fetchall()
+    conn.close()
+
+    return {"message": display_text, "actions": executed, "skills": [dict(s) for s in skills]}
+
+
+@app.patch("/api/workspace/{cid}/skills/{skill_id}")
+async def patch_skill(cid: int, skill_id: int, request: Request):
+    body = await request.json()
+    conn = get_db()
+    row = conn.execute("SELECT * FROM skill_assessments WHERE id=? AND candidate_id=?", (skill_id, cid)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Skill not found")
+
+    updates = {}
+    if "confidence" in body:
+        new_conf = max(0.0, min(1.0, float(body["confidence"])))
+        conn.execute("INSERT INTO skill_overrides (candidate_id, skill_id, field, old_value, new_value, source) VALUES (?,?,?,?,?,?)",
+                     (cid, skill_id, "final_confidence", str(row["final_confidence"]), str(new_conf), "human"))
+        conn.execute("UPDATE skill_assessments SET final_confidence=? WHERE id=?", (new_conf, skill_id))
+        updates["final_confidence"] = new_conf
+    if "irrelevant" in body:
+        conn.execute("INSERT INTO skill_overrides (candidate_id, skill_id, field, old_value, new_value, source) VALUES (?,?,?,?,?,?)",
+                     (cid, skill_id, "category", row["category"], "irrelevant" if body["irrelevant"] else row["category"], "human"))
+        conn.execute("UPDATE skill_assessments SET category=? WHERE id=?", ("irrelevant" if body["irrelevant"] else "other", skill_id))
+        updates["category"] = "irrelevant" if body["irrelevant"] else "other"
+    if "note" in body:
+        conn.execute("UPDATE skill_assessments SET reasoning=? WHERE id=?", (body["note"], skill_id))
+        updates["reasoning"] = body["note"]
+
+    conn.commit()
+    updated = conn.execute("SELECT * FROM skill_assessments WHERE id=?", (skill_id,)).fetchone()
+    conn.close()
+    return dict(updated)
+
+
+@app.post("/api/workspace/{cid}/skills")
+async def add_skill(cid: int, request: Request):
+    body = await request.json()
+    skill_name = body.get("skill_name", "").strip()
+    if not skill_name:
+        raise HTTPException(400, "skill_name required")
+    conn = get_db()
+    candidate = conn.execute("SELECT id FROM candidates WHERE id=?", (cid,)).fetchone()
+    if not candidate:
+        conn.close()
+        raise HTTPException(404)
+    cur = conn.execute(
+        "INSERT INTO skill_assessments (candidate_id, skill_name, category, evidence, llm_confidence, final_confidence, reasoning) VALUES (?,?,?,?,?,?,?)",
+        (cid, skill_name, body.get("category", "other"), body.get("evidence", ""), body.get("confidence", 0.5), body.get("confidence", 0.5), body.get("reasoning", "Manually added"))
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM skill_assessments WHERE id=?", (cur.lastrowid,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True)

@@ -72,6 +72,27 @@ def init_db():
         avg_score REAL DEFAULT 0,
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS workspace_conversations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidate_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        actions_json TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+    );
+    CREATE TABLE IF NOT EXISTS skill_overrides (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidate_id INTEGER NOT NULL,
+        skill_id INTEGER,
+        field TEXT NOT NULL,
+        old_value TEXT,
+        new_value TEXT,
+        source TEXT DEFAULT 'human',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (candidate_id) REFERENCES candidates(id),
+        FOREIGN KEY (skill_id) REFERENCES skill_assessments(id)
+    );
     """)
     conn.commit()
     conn.close()
