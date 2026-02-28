@@ -15,6 +15,13 @@ from .test_selector import select_tests, load_test_bank
 from .assessment import create_session, get_session_by_token, start_session, complete_session, save_submission, get_submissions
 from .email_service import send_assessment_email
 from .bulk_processor import process_bulk, write_output, BulkProgress
+from .integrations import (
+    init_integration_tables, authenticate_api_key,
+    create_integration, list_integrations, revoke_integration,
+    create_submission as create_submission_record, update_submission,
+    get_submission as get_submission_record, list_submissions as list_submission_records,
+)
+from .webhooks import dispatch_webhook
 
 app = FastAPI(title="SuperRecruit", version="1.0.0")
 
@@ -37,6 +44,7 @@ app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), na
 @app.on_event("startup")
 def startup():
     init_db()
+    init_integration_tables()
     # Sync test bank to DB
     bank = load_test_bank()
     conn = get_db()
@@ -623,6 +631,185 @@ async def kb_import(request: Request):
     body = await request.json()
     stats = import_knowledge_base(body)
     return stats
+
+
+# ── API Key Auth Dependency ──
+
+from fastapi import Depends, Header
+from pydantic import BaseModel
+from typing import Optional
+import base64
+
+
+async def require_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> dict:
+    integration = authenticate_api_key(x_api_key)
+    if not integration:
+        raise HTTPException(401, "Invalid or revoked API key")
+    return integration
+
+
+# ── V1 Submission API (external integration surface) ──
+
+class SubmissionCreate(BaseModel):
+    name: str
+    email: str
+    phone: Optional[str] = None
+    resume: Optional[str] = None  # base64-encoded PDF
+    metadata: Optional[dict] = None
+    callback_url: Optional[str] = None
+
+
+@app.post("/api/v1/submissions")
+async def v1_create_submission(
+    body: SubmissionCreate,
+    background_tasks: BackgroundTasks,
+    integration: dict = Depends(require_api_key),
+):
+    submission_id = str(uuid.uuid4())
+    create_submission_record(
+        submission_id, integration["id"],
+        callback_url=body.callback_url, metadata=body.metadata
+    )
+
+    background_tasks.add_task(
+        _process_submission, submission_id, integration, body
+    )
+
+    return {
+        "submission_id": submission_id,
+        "status": "accepted",
+        "estimated_completion": "30-60 seconds",
+    }
+
+
+def _process_submission(submission_id: str, integration: dict, body: SubmissionCreate):
+    """Background: parse resume → extract skills → score → select tests → webhook."""
+    try:
+        # Decode resume
+        if body.resume:
+            pdf_bytes = base64.b64decode(body.resume)
+            path = os.path.join(UPLOAD_DIR, f"sub_{submission_id}.pdf")
+            with open(path, "wb") as f:
+                f.write(pdf_bytes)
+        else:
+            update_submission(submission_id, status="failed", error="No resume provided")
+            dispatch_webhook(submission_id, "submission.failed", {"error": "No resume provided"})
+            return
+
+        update_submission(submission_id, status="processing")
+
+        # Parse
+        parsed = parse_resume(path)
+        resume_text = parsed["raw_text"]
+
+        # Save candidate
+        conn = get_db()
+        cur = conn.execute(
+            "INSERT INTO candidates (name, email, phone, resume_path, resume_text, parsed_data) VALUES (?,?,?,?,?,?)",
+            (body.name, body.email, body.phone or "", path, resume_text, json.dumps(parsed))
+        )
+        cid = cur.lastrowid
+
+        # Extract & score skills
+        skills = extract_skills(resume_text)
+        skills = score_confidence(skills, parsed)
+        for s in skills:
+            conn.execute(
+                "INSERT INTO skill_assessments (candidate_id, skill_name, category, evidence, llm_confidence, final_confidence, reasoning) VALUES (?,?,?,?,?,?,?)",
+                (cid, s.skill_name, s.category, s.evidence, s.llm_confidence.value, (s.final_confidence or s.llm_confidence).value, s.reasoning)
+            )
+        conn.commit()
+
+        # Select tests
+        tests = select_tests(skills)
+
+        # Build results
+        results = {
+            "candidate_id": cid,
+            "skills": [{"name": s.skill_name, "category": s.category, "confidence": (s.final_confidence or s.llm_confidence).value} for s in skills],
+            "recommended_tests": [{"id": t.id, "name": t.name, "category": t.category} for t in tests],
+        }
+
+        update_submission(submission_id, status="completed", candidate_id=cid, results=json.dumps(results))
+        conn.close()
+
+        # Fire webhook
+        dispatch_webhook(submission_id, "submission.analyzed", results)
+
+    except Exception as e:
+        update_submission(submission_id, status="failed", error=str(e))
+        dispatch_webhook(submission_id, "submission.failed", {"error": str(e)})
+
+
+@app.get("/api/v1/submissions/{submission_id}")
+async def v1_get_submission(submission_id: str, integration: dict = Depends(require_api_key)):
+    sub = get_submission_record(submission_id)
+    if not sub or sub["integration_id"] != integration["id"]:
+        raise HTTPException(404, "Submission not found")
+    result = {
+        "submission_id": sub["id"],
+        "status": sub["status"],
+        "created_at": sub["created_at"],
+        "updated_at": sub["updated_at"],
+    }
+    if sub["status"] == "completed" and sub["results"]:
+        result["results"] = json.loads(sub["results"])
+    if sub["status"] == "failed" and sub["error"]:
+        result["error"] = sub["error"]
+    return result
+
+
+@app.get("/api/v1/submissions")
+async def v1_list_submissions(
+    integration: dict = Depends(require_api_key),
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    return list_submission_records(
+        integration_id=integration["id"], status=status,
+        date_from=date_from, date_to=date_to, limit=limit, offset=offset
+    )
+
+
+# ── Admin Endpoints ──
+
+ADMIN_SECRET = os.environ.get("SR_ADMIN_SECRET", "superrecruit-admin-secret")
+
+
+async def require_admin(authorization: str = Header(...)):
+    # Simple bearer token auth for admin
+    if authorization != f"Bearer {ADMIN_SECRET}":
+        raise HTTPException(403, "Admin access required")
+
+
+@app.post("/api/admin/integrations", dependencies=[Depends(require_admin)])
+async def admin_create_integration(request: Request):
+    body = await request.json()
+    name = body.get("name")
+    if not name:
+        raise HTTPException(400, "name required")
+    webhook_url = body.get("webhook_url")
+    integration, api_key = create_integration(name, webhook_url)
+    return {
+        "integration": {k: v for k, v in integration.items() if k != "api_key_hash"},
+        "api_key": api_key,
+        "warning": "Store this API key securely — it will not be shown again.",
+    }
+
+
+@app.get("/api/admin/integrations", dependencies=[Depends(require_admin)])
+async def admin_list_integrations():
+    return list_integrations()
+
+
+@app.delete("/api/admin/integrations/{integration_id}", dependencies=[Depends(require_admin)])
+async def admin_revoke_integration(integration_id: int):
+    if not revoke_integration(integration_id):
+        raise HTTPException(404, "Integration not found")
+    return {"ok": True, "message": "Integration revoked"}
 
 
 if __name__ == "__main__":

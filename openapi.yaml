@@ -1,0 +1,1092 @@
+openapi: 3.1.0
+info:
+  title: SuperRecruit
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Health
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /:
+    get:
+      summary: Index
+      operationId: index__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+  /candidates:
+    get:
+      summary: Candidates Page
+      operationId: candidates_page_candidates_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+  /candidates/{cid}:
+    get:
+      summary: Candidate Detail
+      operationId: candidate_detail_candidates__cid__get
+      parameters:
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Cid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /candidates/{cid}/assessment:
+    get:
+      summary: Assessment Setup
+      operationId: assessment_setup_candidates__cid__assessment_get
+      parameters:
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Cid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /assess/{token}:
+    get:
+      summary: Assess Portal
+      operationId: assess_portal_assess__token__get
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /assess/{token}/results:
+    get:
+      summary: Assess Results
+      operationId: assess_results_assess__token__results_get
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/candidates/upload:
+    post:
+      summary: Upload Resume
+      operationId: upload_resume_api_candidates_upload_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_resume_api_candidates_upload_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/candidates:
+    get:
+      summary: List Candidates
+      operationId: list_candidates_api_candidates_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/candidates/{cid}:
+    get:
+      summary: Get Candidate
+      operationId: get_candidate_api_candidates__cid__get
+      parameters:
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Cid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/candidates/{cid}/send-assessment:
+    post:
+      summary: Send Assessment
+      operationId: send_assessment_api_candidates__cid__send_assessment_post
+      parameters:
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Cid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /assess/{token}/submit:
+    post:
+      summary: Submit Assessment
+      operationId: submit_assessment_assess__token__submit_post
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /bulk:
+    get:
+      summary: Bulk Upload Page
+      operationId: bulk_upload_page_bulk_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+  /api/bulk:
+    post:
+      summary: Bulk Upload
+      operationId: bulk_upload_api_bulk_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_bulk_upload_api_bulk_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/bulk/{job_id}:
+    get:
+      summary: Bulk Status
+      operationId: bulk_status_api_bulk__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Job Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/test-bank:
+    get:
+      summary: Get Test Bank
+      operationId: get_test_bank_api_test_bank_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /workspace/{cid}:
+    get:
+      summary: Workspace
+      operationId: workspace_workspace__cid__get
+      parameters:
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Cid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspace/{cid}/chat:
+    post:
+      summary: Workspace Chat
+      operationId: workspace_chat_api_workspace__cid__chat_post
+      parameters:
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Cid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspace/{cid}/skills/{skill_id}:
+    patch:
+      summary: Patch Skill
+      operationId: patch_skill_api_workspace__cid__skills__skill_id__patch
+      parameters:
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Cid
+      - name: skill_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Skill Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspace/{cid}/skills:
+    post:
+      summary: Add Skill
+      operationId: add_skill_api_workspace__cid__skills_post
+      parameters:
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Cid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /knowledge-base:
+    get:
+      summary: Knowledge Base Page
+      operationId: knowledge_base_page_knowledge_base_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+  /api/kb/skills:
+    get:
+      summary: Kb List Skills
+      operationId: kb_list_skills_api_kb_skills_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Kb Create Skill
+      operationId: kb_create_skill_api_kb_skills_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/kb/skills/{skill_id}:
+    get:
+      summary: Kb Get Skill
+      operationId: kb_get_skill_api_kb_skills__skill_id__get
+      parameters:
+      - name: skill_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Skill Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      summary: Kb Update Skill
+      operationId: kb_update_skill_api_kb_skills__skill_id__patch
+      parameters:
+      - name: skill_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Skill Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      summary: Kb Delete Skill
+      operationId: kb_delete_skill_api_kb_skills__skill_id__delete
+      parameters:
+      - name: skill_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Skill Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/kb/skills/{skill_id}/relations:
+    post:
+      summary: Kb Create Relation
+      operationId: kb_create_relation_api_kb_skills__skill_id__relations_post
+      parameters:
+      - name: skill_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Skill Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/kb/relations/{relation_id}:
+    delete:
+      summary: Kb Delete Relation
+      operationId: kb_delete_relation_api_kb_relations__relation_id__delete
+      parameters:
+      - name: relation_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Relation Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/kb/roles:
+    get:
+      summary: Kb List Roles
+      operationId: kb_list_roles_api_kb_roles_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Kb Create Role
+      operationId: kb_create_role_api_kb_roles_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/kb/roles/{role_id}:
+    get:
+      summary: Kb Get Role
+      operationId: kb_get_role_api_kb_roles__role_id__get
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Role Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      summary: Kb Update Role
+      operationId: kb_update_role_api_kb_roles__role_id__patch
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Role Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      summary: Kb Delete Role
+      operationId: kb_delete_role_api_kb_roles__role_id__delete
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Role Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/kb/roles/{role_id}/employers:
+    get:
+      summary: Kb List Employers
+      operationId: kb_list_employers_api_kb_roles__role_id__employers_get
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Role Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      summary: Kb Create Employer
+      operationId: kb_create_employer_api_kb_roles__role_id__employers_post
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Role Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/kb/roles/{role_id}/employers/{ei_id}:
+    get:
+      summary: Kb Get Employer
+      operationId: kb_get_employer_api_kb_roles__role_id__employers__ei_id__get
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Role Id
+      - name: ei_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Ei Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      summary: Kb Update Employer
+      operationId: kb_update_employer_api_kb_roles__role_id__employers__ei_id__patch
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Role Id
+      - name: ei_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Ei Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      summary: Kb Delete Employer
+      operationId: kb_delete_employer_api_kb_roles__role_id__employers__ei_id__delete
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Role Id
+      - name: ei_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Ei Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/kb/search:
+    get:
+      summary: Kb Search
+      operationId: kb_search_api_kb_search_get
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Q
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/kb/export:
+    get:
+      summary: Kb Export
+      operationId: kb_export_api_kb_export_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/kb/import:
+    post:
+      summary: Kb Import
+      operationId: kb_import_api_kb_import_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/submissions:
+    post:
+      summary: V1 Create Submission
+      operationId: v1_create_submission_api_v1_submissions_post
+      parameters:
+      - name: X-API-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          title: X-Api-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      summary: V1 List Submissions
+      operationId: v1_list_submissions_api_v1_submissions_get
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - name: date_from
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Date From
+      - name: date_to
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Date To
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: X-API-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          title: X-Api-Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/submissions/{submission_id}:
+    get:
+      summary: V1 Get Submission
+      operationId: v1_get_submission_api_v1_submissions__submission_id__get
+      parameters:
+      - name: submission_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Submission Id
+      - name: X-API-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          title: X-Api-Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/admin/integrations:
+    post:
+      summary: Admin Create Integration
+      operationId: admin_create_integration_api_admin_integrations_post
+      parameters:
+      - name: authorization
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      summary: Admin List Integrations
+      operationId: admin_list_integrations_api_admin_integrations_get
+      parameters:
+      - name: authorization
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/admin/integrations/{integration_id}:
+    delete:
+      summary: Admin Revoke Integration
+      operationId: admin_revoke_integration_api_admin_integrations__integration_id__delete
+      parameters:
+      - name: integration_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Integration Id
+      - name: authorization
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Body_bulk_upload_api_bulk_post:
+      properties:
+        file:
+          type: string
+          format: binary
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_bulk_upload_api_bulk_post
+    Body_upload_resume_api_candidates_upload_post:
+      properties:
+        file:
+          type: string
+          format: binary
+          title: File
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        phone:
+          type: string
+          title: Phone
+          default: ''
+      type: object
+      required:
+      - file
+      - name
+      - email
+      title: Body_upload_resume_api_candidates_upload_post
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    SubmissionCreate:
+      properties:
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone
+        resume:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resume
+        metadata:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Metadata
+        callback_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callback Url
+      type: object
+      required:
+      - name
+      - email
+      title: SubmissionCreate
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
