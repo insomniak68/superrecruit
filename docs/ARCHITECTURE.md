@@ -60,6 +60,37 @@ Resume (PDF) → resume_parser → raw text + sections
 - **employer_interpretations** — id, role_archetype_id (FK), employer_name, equivalency_prefs (JSON), notes, learned_from (JSON), version, timestamps
 - **employer_skill_overrides** — id, employer_interpretation_id (FK), skill_concept_id (FK), priority, weight_override
 
+## LLM Configuration
+
+SuperRecruit supports multiple LLM providers via a unified interface (`src/llm_config.py`).
+
+### Providers
+- **Anthropic** — Uses the `anthropic` Python library
+- **OpenAI-compatible** — Any provider with a `/v1/chat/completions` endpoint (OpenAI, Azure, Ollama, vLLM, local models). Uses `httpx` directly — no `openai` dependency.
+
+### Roles
+Each LLM task maps to a "role" that resolves to a provider + model:
+- `skill_extraction` — Resume skill analysis
+- `workspace_chat` — Interactive candidate review agent
+- `bulk_processing` — Batch resume pipeline
+- `confidence_reasoning` — Confidence score justification
+
+### Configuration Hierarchy
+1. `config/llm.yaml` — Primary config (copy from `config/llm.example.yaml`)
+2. `SR_LLM_*` env vars — Override provider/model per role
+3. `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL` — Backward-compatible fallback
+
+### Fallback Chains
+Each role can define a `fallback` list of providers. If the primary fails (network error, API down), the next provider is tried automatically.
+
+### Unified Interface
+All LLM calls go through `get_client(role) -> LLMClient` with a single `.complete()` method:
+```python
+from src.llm_config import get_client
+client = get_client("skill_extraction")
+result = client.complete(messages=[...], max_tokens=4096, system="...")
+```
+
 ## Key Design Decisions
 
 - **SQLite with WAL** — Simple deployment, sufficient for single-instance. Postgres migration path planned.

@@ -1,10 +1,7 @@
 import json
 import os
-import anthropic
 from .models import SkillAssessment
-
-API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+from .llm_config import get_client
 
 PROMPT = """Analyze this resume and extract all technical and professional skills claimed.
 
@@ -25,13 +22,11 @@ Resume:
 
 
 def extract_skills(resume_text: str) -> list[SkillAssessment]:
-    client = anthropic.Anthropic(api_key=API_KEY)
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=4096,
+    client = get_client("skill_extraction")
+    raw = client.complete(
         messages=[{"role": "user", "content": PROMPT.format(resume_text=resume_text)}],
-    )
-    raw = message.content[0].text.strip()
+        max_tokens=4096,
+    ).strip()
     # Strip markdown fences if present
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1]

@@ -3,9 +3,7 @@
 import json
 import os
 import re
-from anthropic import Anthropic
-
-client = Anthropic()
+from .llm_config import get_client
 
 SYSTEM_PROMPT_TEMPLATE = """You are an AI recruiting analyst helping review a candidate's skills and qualifications.
 
@@ -96,14 +94,8 @@ def chat(candidate: dict, skills: list[dict], history: list[dict], user_message:
         messages.append({"role": h["role"], "content": h["content"]})
     messages.append({"role": "user", "content": user_message})
 
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2048,
-        system=system,
-        messages=messages,
-    )
-
-    raw_text = response.content[0].text
+    llm = get_client("workspace_chat")
+    raw_text = llm.complete(messages=messages, max_tokens=2048, system=system)
     display_text, actions = _parse_actions(raw_text)
 
     return display_text, actions

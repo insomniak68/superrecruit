@@ -17,6 +17,10 @@ pip install -r requirements.txt
 cp .env.example .env
 # Set ANTHROPIC_API_KEY in .env
 
+# Optional: configure LLM providers (Anthropic, OpenAI, Ollama, etc.)
+cp config/llm.example.yaml config/llm.yaml
+# Edit config/llm.yaml with your API keys and preferred models
+
 # Optional: seed data
 python scripts/seed_knowledge_base.py
 python scripts/seed_test_data.py

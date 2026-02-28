@@ -1,0 +1,46 @@
+# SuperRecruit LLM Configuration
+# Copy to config/llm.yaml and fill in your API keys.
+# API keys can reference env vars: ${ANTHROPIC_API_KEY}
+
+default_provider: anthropic
+default_model: claude-sonnet-4-20250514
+
+providers:
+  anthropic:
+    type: anthropic
+    api_key: ${ANTHROPIC_API_KEY}
+    default_model: claude-sonnet-4-20250514
+
+  openai:
+    type: openai_compatible
+    api_key: ${OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1
+    default_model: gpt-4o
+
+  local:
+    type: openai_compatible
+    api_key: ""
+    base_url: http://localhost:11434/v1
+    default_model: llama3:8b
+
+# Role-to-provider mapping. Each role can specify a provider, model, and fallback chain.
+roles:
+  skill_extraction:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    fallback: [openai, local]
+
+  workspace_chat:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    fallback: [openai]
+
+  bulk_processing:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    fallback: [local]
+
+  confidence_reasoning:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    fallback: [openai]
