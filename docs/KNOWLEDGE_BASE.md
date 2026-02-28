@@ -71,6 +71,7 @@ The KB enriches the pipeline in two ways:
 
 1. **Skill Extractor** — `enrich_with_knowledge_base()` adds canonical names, subconcepts, and competency signals to extracted skills
 2. **Workspace Agent** — `get_kb_context_for_role()` and `get_skills_context()` inject KB context into the agent's system prompt, enabling informed skill discussions
+3. **Fit Assessment** — Role archetypes (core/adjacent skills, weights, min confidence) feed the `fit_assessor` module, which scores candidates against roles using weighted skill matching and skill equivalency relations from the KB
 
 ## Workspace Agent Actions
 

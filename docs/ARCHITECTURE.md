@@ -16,6 +16,7 @@
 | `email_service.py` | SMTP integration for assessment invitation emails |
 | `bulk_processor.py` | Processes ZIP archives of resumes in background tasks |
 | `workspace_agent.py` | Claude-powered chat agent for interactive skill review |
+| `fit_assessor.py` | Overall candidate-role fit scoring with LLM rationale |
 | `knowledge_base.py` | Skill ontology, role archetypes, employer interpretations |
 
 ## Data Flow
@@ -35,7 +36,9 @@ Resume (PDF) → resume_parser → raw text + sections
                     │               │               │
               test_selector    workspace_agent   knowledge_base
                     │               │               │
-              assessment       skill adjustments   ontology CRUD
+              assessment       fit_assessor      ontology CRUD
+                                    │
+                              fit_assessments
               (email → portal → auto-grade)
 ```
 
@@ -49,6 +52,7 @@ Resume (PDF) → resume_parser → raw text + sections
 - **test_submissions** — id, session_id (FK), test_id, question_id, answer, is_correct, score, graded_by, submitted_at
 - **test_bank_meta** — id, test_id (unique), name, category, skill_tags (JSON), times_administered, avg_score
 - **workspace_conversations** — id, candidate_id (FK), role, content, actions_json, created_at
+- **fit_assessments** — id, candidate_id (FK), role_archetype_id (FK, nullable), fit_score (REAL), fit_level (TEXT), rationale (TEXT), breakdown_json (JSON), assessed_by (system/human/ai), created_at
 - **skill_overrides** — id, candidate_id (FK), skill_id (FK), field, old_value, new_value, source, created_at
 
 ### Knowledge Base Tables
@@ -96,4 +100,5 @@ result = client.complete(messages=[...], max_tokens=4096, system="...")
 - **SQLite with WAL** — Simple deployment, sufficient for single-instance. Postgres migration path planned.
 - **In-memory bulk job tracking** — `_bulk_jobs` dict in `main.py`; jobs lost on restart (acceptable for batch processing).
 - **Knowledge Base is PII-free** — Safely exportable between instances. Skill ontology is separate from candidate data.
-- **Workspace agent actions** — Chat responses can include structured actions (adjust_confidence, add_skill, remove_skill, learn_skill_concept, learn_equivalency, set_note) that are executed server-side.
+- **Workspace agent actions** — Chat responses can include structured actions (adjust_confidence, add_skill, remove_skill, learn_skill_concept, learn_equivalency, set_note, override_fit) that are executed server-side.
+- **Fit assessment** — Automatic scoring of candidates against role archetypes or ad-hoc position profiles. Uses weighted skill matching with KB equivalencies and LLM-generated rationale. Supports manual override via API or workspace chat.

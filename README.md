@@ -48,6 +48,7 @@
 - **Assessment Portal** — Send candidates targeted tests from a YAML-based test bank; auto-grade multiple choice
 - **Bulk Processing** — Upload a ZIP of resumes for batch analysis
 - **Interactive Workspace** — Chat with an AI agent to review and adjust candidate skills in real-time
+- **Candidate-Role Fit Assessment** — Automatic scoring of how well a candidate matches a role archetype, with LLM-generated rationale and manual override support
 - **Knowledge Base** — Maintain a shared ontology of skills, role archetypes, and employer-specific interpretations; fully exportable/importable
 
 ## Quick Start (Local Development)
@@ -177,6 +178,7 @@ kubectl apply -f k8s/service.yaml
 | `POST` | `/api/workspace/{cid}/chat` | Chat with AI agent (`{message}`) |
 | `PATCH` | `/api/workspace/{cid}/skills/{sid}` | Update skill (`{confidence, irrelevant, note}`) |
 | `POST` | `/api/workspace/{cid}/skills` | Add skill manually |
+| `PATCH` | `/api/workspace/{cid}/fit` | Override fit assessment (`{fit_level, rationale}`) |
 
 ### Knowledge Base
 
@@ -253,6 +255,7 @@ superrecruit/
 │   ├── email_service.py     # SMTP email sending
 │   ├── bulk_processor.py    # ZIP bulk resume processing
 │   ├── workspace_agent.py   # AI workspace chat agent
+│   ├── fit_assessor.py      # Candidate-role fit assessment
 │   ├── knowledge_base.py    # Skill/role ontology CRUD
 │   ├── templates/           # Jinja2 HTML templates
 │   └── test_bank/           # YAML assessment questions

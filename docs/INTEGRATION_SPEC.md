@@ -75,7 +75,10 @@ Poll for results. Returns full results when `status` is `"completed"`.
     ],
     "recommended_tests": [
       {"id": "python-advanced", "name": "Python Advanced", "category": "language"}
-    ]
+    ],
+    "fit_score": 0.82,
+    "fit_level": "strong",
+    "fit_rationale": "Strong Python and SQL skills align well with backend requirements."
   }
 }
 ```
@@ -119,7 +122,7 @@ Webhooks are sent as `POST` requests with JSON payload when key events occur.
 
 | Event | Trigger | Data |
 |-------|---------|------|
-| `submission.analyzed` | Resume parsed, skills extracted, tests selected | `{ candidate_id, skills, recommended_tests }` |
+| `submission.analyzed` | Resume parsed, skills extracted, tests selected | `{ candidate_id, skills, recommended_tests, fit_score, fit_level, fit_rationale }` |
 | `submission.failed` | Processing error | `{ error }` |
 | `assessment.sent` | Assessment email sent to candidate | `{ candidate_id, token }` |
 | `assessment.completed` | Candidate completed assessment | `{ candidate_id, session_id, scores }` |

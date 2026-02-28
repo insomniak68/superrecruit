@@ -20,6 +20,8 @@ cp .env.example .env
 # Optional: configure LLM providers (Anthropic, OpenAI, Ollama, etc.)
 cp config/llm.example.yaml config/llm.yaml
 # Edit config/llm.yaml with your API keys and preferred models
+# Note: the `confidence_reasoning` LLM role is used for fit assessment rationale generation.
+# Configure it in config/llm.yaml or via SR_LLM_CONFIDENCE_REASONING_MODEL env var.
 
 # Optional: seed data
 python scripts/seed_knowledge_base.py

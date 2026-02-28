@@ -104,7 +104,8 @@ Upload a resume and create a candidate. Triggers skill extraction and confidence
 {
   "message": "I've adjusted Python confidence from 0.7 to 0.85 based on your input.",
   "actions": [{"action": "adjust_confidence", "skill_name": "Python", "confidence": 0.85}],
-  "skills": [...]
+  "skills": [...],
+  "fit": {"fit_score": 0.72, "fit_level": "good", "rationale": "...", "assessed_by": "system"}
 }
 ```
 
@@ -116,6 +117,30 @@ Upload a resume and create a candidate. Triggers skill extraction and confidence
 
 // Response: updated skill object
 ```
+
+### `PATCH /api/workspace/{cid}/fit`
+
+Override the candidate's fit assessment manually.
+
+```json
+// Request
+{"fit_level": "strong", "rationale": "Confirmed strong fit after interview", "fit_score": 0.9}
+
+// Response: created fit_assessment row
+{
+  "id": 5,
+  "candidate_id": 1,
+  "role_archetype_id": null,
+  "fit_score": 0.9,
+  "fit_level": "strong",
+  "rationale": "Confirmed strong fit after interview",
+  "breakdown_json": "{\"override\": true}",
+  "assessed_by": "human",
+  "created_at": "2026-02-28T12:00:00"
+}
+```
+
+`fit_level` is required. `fit_score` is optional (defaults based on level). `assessed_by` defaults to `"human"`.
 
 ### `POST /api/workspace/{cid}/skills`
 
