@@ -27,7 +27,14 @@ from .position_profiles import (
     create_position, get_position, list_positions, update_position,
     delete_position, activate_position, get_active_position, parse_job_posting,
 )
-from .models import PositionProfileCreate, PositionProfileUpdate, JobPostingInput
+from .skill_equivalencies import (
+    create_equivalency_group, get_equivalency_group, list_equivalency_groups,
+    update_equivalency_group, delete_equivalency_group, seed_equivalency_groups,
+)
+from .models import (
+    PositionProfileCreate, PositionProfileUpdate, JobPostingInput,
+    EquivalencyGroupCreate, EquivalencyGroupUpdate,
+)
 
 app = FastAPI(title="SuperRecruit", version="1.0.0")
 
@@ -622,6 +629,57 @@ async def add_skill(cid: int, request: Request):
     row = conn.execute("SELECT * FROM skill_assessments WHERE id=?", (cur.lastrowid,)).fetchone()
     conn.close()
     return dict(row)
+
+
+# ── Equivalencies Routes ──
+
+@app.get("/equivalencies", response_class=HTMLResponse)
+async def equivalencies_page(request: Request):
+    groups = list_equivalency_groups()
+    return templates.TemplateResponse("equivalencies.html", {"request": request, "groups": [g.model_dump() for g in groups]})
+
+
+@app.post("/api/equivalencies")
+async def api_create_equivalency(request: Request):
+    body = await request.json()
+    data = EquivalencyGroupCreate(**body)
+    return create_equivalency_group(data).model_dump()
+
+
+@app.get("/api/equivalencies")
+async def api_list_equivalencies():
+    return [g.model_dump() for g in list_equivalency_groups()]
+
+
+@app.get("/api/equivalencies/{gid}")
+async def api_get_equivalency(gid: int):
+    g = get_equivalency_group(gid)
+    if not g:
+        raise HTTPException(404, "Equivalency group not found")
+    return g.model_dump()
+
+
+@app.put("/api/equivalencies/{gid}")
+async def api_update_equivalency(gid: int, request: Request):
+    body = await request.json()
+    data = EquivalencyGroupUpdate(**body)
+    g = update_equivalency_group(gid, data)
+    if not g:
+        raise HTTPException(404, "Equivalency group not found")
+    return g.model_dump()
+
+
+@app.delete("/api/equivalencies/{gid}")
+async def api_delete_equivalency(gid: int):
+    if not delete_equivalency_group(gid):
+        raise HTTPException(404, "Equivalency group not found")
+    return {"ok": True}
+
+
+@app.post("/api/equivalencies/seed")
+async def api_seed_equivalencies():
+    created = seed_equivalency_groups()
+    return {"seeded": len(created), "groups": [g.model_dump() for g in created]}
 
 
 # ── Knowledge Base Routes ──

@@ -15,6 +15,7 @@ from .knowledge_base import (
     get_skill_by_canonical,
 )
 from .llm_config import get_client
+from .skill_equivalencies import find_equivalents, adjusted_skill_score
 
 logger = logging.getLogger(__name__)
 
@@ -62,17 +63,38 @@ def _get_equivalent_names(canonical_name: str) -> set[str]:
     return equivalents
 
 
-def _find_skill_match(skill_canonical: str, candidate_skills_map: dict[str, float]) -> Optional[float]:
-    """Find a candidate skill matching the required skill, considering equivalencies."""
+def _find_skill_match(
+    skill_canonical: str,
+    candidate_skills_map: dict[str, float],
+    position_id: int = None,
+) -> tuple[Optional[float], Optional[str]]:
+    """Find a candidate skill matching the required skill, considering equivalencies.
+
+    Returns (score, explanation) or (None, None) if no match.
+    """
     # Direct match
     if skill_canonical in candidate_skills_map:
-        return candidate_skills_map[skill_canonical]
-    # Check equivalencies
+        return candidate_skills_map[skill_canonical], None
+    # Check KB equivalencies (legacy)
     equivalents = _get_equivalent_names(skill_canonical)
     for eq in equivalents:
         if eq in candidate_skills_map:
-            return candidate_skills_map[eq]
-    return None
+            return candidate_skills_map[eq], None
+    # Check configurable skill equivalencies
+    eq_skills = find_equivalents(skill_canonical, position_id=position_id)
+    best_score = None
+    best_explanation = None
+    for eq in eq_skills:
+        eq_name = eq["skill_name"]
+        if eq_name in candidate_skills_map:
+            base = candidate_skills_map[eq_name]
+            adj, explanation = adjusted_skill_score(eq_name, skill_canonical, base, position_id)
+            if best_score is None or adj > best_score:
+                best_score = adj
+                best_explanation = explanation
+    if best_score is not None:
+        return best_score, best_explanation
+    return None, None
 
 
 def _assess_with_role(skills: list[dict], role_archetype_id: int) -> FitResult:
@@ -99,7 +121,7 @@ def _assess_with_role(skills: list[dict], role_archetype_id: int) -> FitResult:
         weight = rs.weight or 1.0
         total_weight += weight
 
-        match_conf = _find_skill_match(skill_name, candidate_map)
+        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map)
         if match_conf is not None:
             # Penalize if below min_confidence
             if rs.min_confidence and match_conf < rs.min_confidence:
@@ -110,7 +132,10 @@ def _assess_with_role(skills: list[dict], role_archetype_id: int) -> FitResult:
             skill_score = 0.0  # Missing core skill
 
         weighted_score += skill_score * weight
-        core_scores.append({"skill": rs.skill_name, "score": round(skill_score, 3), "matched": match_conf is not None})
+        entry = {"skill": rs.skill_name, "score": round(skill_score, 3), "matched": match_conf is not None}
+        if eq_explanation:
+            entry["equivalency"] = eq_explanation
+        core_scores.append(entry)
 
     # Score adjacent skills (lower weight)
     adjacent_scores = []
@@ -119,14 +144,17 @@ def _assess_with_role(skills: list[dict], role_archetype_id: int) -> FitResult:
         weight = rs.weight or 0.5
         total_weight += weight
 
-        match_conf = _find_skill_match(skill_name, candidate_map)
+        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map)
         if match_conf is not None:
             skill_score = match_conf
         else:
             skill_score = 0.0  # Not penalized as heavily — just no bonus
 
         weighted_score += skill_score * weight
-        adjacent_scores.append({"skill": rs.skill_name, "score": round(skill_score, 3), "matched": match_conf is not None})
+        entry = {"skill": rs.skill_name, "score": round(skill_score, 3), "matched": match_conf is not None}
+        if eq_explanation:
+            entry["equivalency"] = eq_explanation
+        adjacent_scores.append(entry)
 
     fit_score = weighted_score / total_weight if total_weight > 0 else 0.0
     fit_score = max(0.0, min(1.0, fit_score))
@@ -156,6 +184,7 @@ def _assess_with_profile(skills: list[dict], position_profile: dict) -> FitResul
         conf = float(s.get("final_confidence") or s.get("llm_confidence") or 0)
         candidate_map[name] = max(candidate_map.get(name, 0), conf)
 
+    position_id = position_profile.get("position_id")
     total_weight = 0.0
     weighted_score = 0.0
     core_scores = []
@@ -166,20 +195,26 @@ def _assess_with_profile(skills: list[dict], position_profile: dict) -> FitResul
         weight = 1.0 if isinstance(req, str) else req.get("weight", 1.0)
         total_weight += weight
 
-        match_conf = _find_skill_match(skill_name.lower().strip(), candidate_map)
+        match_conf, eq_explanation = _find_skill_match(skill_name.lower().strip(), candidate_map, position_id=position_id)
         skill_score = match_conf if match_conf is not None else 0.0
         weighted_score += skill_score * weight
-        core_scores.append({"skill": skill_name, "score": round(skill_score, 3), "matched": match_conf is not None})
+        entry = {"skill": skill_name, "score": round(skill_score, 3), "matched": match_conf is not None}
+        if eq_explanation:
+            entry["equivalency"] = eq_explanation
+        core_scores.append(entry)
 
     for req in position_profile.get("adjacent_skills", []):
         skill_name = req if isinstance(req, str) else req.get("name", "")
         weight = 0.5 if isinstance(req, str) else req.get("weight", 0.5)
         total_weight += weight
 
-        match_conf = _find_skill_match(skill_name.lower().strip(), candidate_map)
+        match_conf, eq_explanation = _find_skill_match(skill_name.lower().strip(), candidate_map, position_id=position_id)
         skill_score = match_conf if match_conf is not None else 0.0
         weighted_score += skill_score * weight
-        adjacent_scores.append({"skill": skill_name, "score": round(skill_score, 3), "matched": match_conf is not None})
+        entry = {"skill": skill_name, "score": round(skill_score, 3), "matched": match_conf is not None}
+        if eq_explanation:
+            entry["equivalency"] = eq_explanation
+        adjacent_scores.append(entry)
 
     fit_score = weighted_score / total_weight if total_weight > 0 else 0.0
     fit_score = max(0.0, min(1.0, fit_score))

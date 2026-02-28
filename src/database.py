@@ -170,7 +170,22 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_active INTEGER DEFAULT 0,
-        created_by TEXT DEFAULT 'manual'
+        created_by TEXT DEFAULT 'manual',
+        equivalency_overrides TEXT DEFAULT NULL
+    );
+    CREATE TABLE IF NOT EXISTS skill_equivalency_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS skill_equivalencies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_id INTEGER NOT NULL,
+        skill_name TEXT NOT NULL,
+        weight REAL DEFAULT 1.0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (group_id) REFERENCES skill_equivalency_groups(id) ON DELETE CASCADE
     );
     CREATE TABLE IF NOT EXISTS skill_overrides (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

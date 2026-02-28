@@ -98,6 +98,36 @@ class TestBank(BaseModel):
     questions: list[TestQuestion]
 
 
+class EquivalencySkill(BaseModel):
+    skill_name: str
+    weight: float = 1.0
+
+    @field_validator("weight", mode="before")
+    @classmethod
+    def clamp_weight(cls, v):
+        return max(0.0, min(1.0, float(v)))
+
+
+class EquivalencyGroupCreate(BaseModel):
+    name: str
+    description: str = ""
+    skills: list[EquivalencySkill] = []
+
+
+class EquivalencyGroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    skills: Optional[list[EquivalencySkill]] = None
+
+
+class EquivalencyGroupResponse(BaseModel):
+    id: int
+    name: str
+    description: str
+    skills: list[EquivalencySkill]
+    created_at: str
+
+
 class AssessmentPackage(BaseModel):
     candidate_id: int
     tests: list[str]  # test IDs
