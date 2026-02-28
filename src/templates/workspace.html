@@ -51,6 +51,36 @@
             <h2 class="font-semibold text-sm">🎯 Skills Analysis</h2>
             <button onclick="document.getElementById('add-skill-form').classList.toggle('hidden')" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700">+ Add Skill</button>
         </div>
+        <!-- Fit Assessment Badge -->
+        <div class="p-3 border-b" id="fit-badge-container">
+            {% if fit %}
+            {% set badge_color = 'bg-green-100 text-green-800 border-green-300' if fit.fit_level == 'strong' else ('bg-blue-100 text-blue-800 border-blue-300' if fit.fit_level == 'good' else ('bg-orange-100 text-orange-800 border-orange-300' if fit.fit_level == 'weak' else 'bg-red-100 text-red-800 border-red-300')) %}
+            <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-1 rounded-full text-xs font-bold border {{ badge_color }}" id="fit-badge">
+                        {{ fit.fit_level|upper }} FIT · {{ (fit.fit_score * 100)|int }}%
+                    </span>
+                    <span class="text-xs text-gray-400">assessed by {{ fit.assessed_by }}</span>
+                </div>
+                <button onclick="showFitOverride()" class="text-xs text-indigo-600 hover:underline">Override</button>
+            </div>
+            <p class="text-xs text-gray-600" id="fit-rationale">{{ fit.rationale }}</p>
+            {% else %}
+            <p class="text-xs text-gray-400">No fit assessment yet.</p>
+            {% endif %}
+            <div id="fit-override-form" class="hidden mt-2 p-2 bg-gray-50 rounded">
+                <div class="flex gap-2 mb-2">
+                    <select id="fit-override-level" class="px-2 py-1 border rounded text-xs">
+                        <option value="strong">Strong</option>
+                        <option value="good">Good</option>
+                        <option value="weak">Weak</option>
+                        <option value="poor">Poor</option>
+                    </select>
+                    <input type="text" id="fit-override-rationale" placeholder="Rationale..." class="flex-1 px-2 py-1 border rounded text-xs">
+                    <button onclick="saveFitOverride()" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs">Save</button>
+                </div>
+            </div>
+        </div>
         <div id="add-skill-form" class="hidden p-3 border-b bg-gray-50">
             <div class="flex gap-2">
                 <input type="text" id="new-skill-name" placeholder="Skill name" class="flex-1 px-2 py-1 border rounded text-sm">
@@ -162,6 +192,7 @@ async function sendChat() {
         const data = await res.json();
         appendChat('assistant', data.message);
         if (data.skills) refreshSkills(data.skills);
+        if (data.fit) updateFitBadge(data.fit);
         if (data.actions && data.actions.length) {
             data.actions.forEach(a => {
                 const card = document.querySelector(`[data-skill-name="${a.skill_name}"]`);
@@ -238,6 +269,35 @@ async function addSkill() {
         body: JSON.stringify({skill_name: name, category, confidence: 0.5})
     });
     if (res.ok) location.reload();
+}
+
+function showFitOverride() {
+    document.getElementById('fit-override-form').classList.toggle('hidden');
+}
+
+async function saveFitOverride() {
+    const level = document.getElementById('fit-override-level').value;
+    const rationale = document.getElementById('fit-override-rationale').value;
+    const res = await fetch(`/api/workspace/${CID}/fit`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({fit_level: level, rationale: rationale})
+    });
+    if (res.ok) {
+        const fit = await res.json();
+        updateFitBadge(fit);
+        document.getElementById('fit-override-form').classList.add('hidden');
+    }
+}
+
+function updateFitBadge(fit) {
+    const colors = {strong: 'bg-green-100 text-green-800 border-green-300', good: 'bg-blue-100 text-blue-800 border-blue-300', weak: 'bg-orange-100 text-orange-800 border-orange-300', poor: 'bg-red-100 text-red-800 border-red-300'};
+    const badge = document.getElementById('fit-badge');
+    const rationale = document.getElementById('fit-rationale');
+    if (badge) {
+        badge.className = `px-2 py-1 rounded-full text-xs font-bold border ${colors[fit.fit_level] || colors.poor}`;
+        badge.textContent = `${fit.fit_level.toUpperCase()} FIT · ${Math.round(fit.fit_score * 100)}%`;
+    }
+    if (rationale) rationale.textContent = fit.rationale || '';
 }
 
 function refreshSkills(skills) {

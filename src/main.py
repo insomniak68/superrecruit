@@ -22,6 +22,7 @@ from .integrations import (
     get_submission as get_submission_record, list_submissions as list_submission_records,
 )
 from .webhooks import dispatch_webhook
+from .fit_assessor import assess_fit
 
 app = FastAPI(title="SuperRecruit", version="1.0.0")
 
@@ -80,11 +81,15 @@ async def candidate_detail(request: Request, cid: int):
         raise HTTPException(404, "Candidate not found")
     skills = conn.execute("SELECT * FROM skill_assessments WHERE candidate_id=?", (cid,)).fetchall()
     sessions = conn.execute("SELECT * FROM assessment_sessions WHERE candidate_id=? ORDER BY sent_at DESC", (cid,)).fetchall()
+    fit_row = conn.execute(
+        "SELECT * FROM fit_assessments WHERE candidate_id=? ORDER BY created_at DESC LIMIT 1", (cid,)
+    ).fetchone()
     conn.close()
     return templates.TemplateResponse("candidate_detail.html", {
         "request": request, "candidate": dict(candidate),
         "skills": [dict(s) for s in skills],
         "sessions": [dict(s) for s in sessions],
+        "fit": dict(fit_row) if fit_row else None,
     })
 
 
@@ -170,6 +175,20 @@ async def upload_resume(file: UploadFile = File(...), name: str = Form(...), ema
             (cid, s.skill_name, s.category, s.evidence, s.llm_confidence.value, (s.final_confidence or s.llm_confidence).value, s.reasoning)
         )
     conn.commit()
+
+    # Run fit assessment
+    skill_dicts = [{"skill_name": s.skill_name, "category": s.category,
+                     "llm_confidence": s.llm_confidence.value,
+                     "final_confidence": (s.final_confidence or s.llm_confidence).value} for s in skills]
+    try:
+        fit = assess_fit(skill_dicts)
+        conn.execute(
+            "INSERT INTO fit_assessments (candidate_id, fit_score, fit_level, rationale, breakdown_json, assessed_by) VALUES (?,?,?,?,?,?)",
+            (cid, fit.fit_score, fit.fit_level, fit.rationale, json.dumps(fit.breakdown), "system")
+        )
+        conn.commit()
+    except Exception:
+        pass  # Non-fatal — fit assessment is best-effort
     conn.close()
 
     return RedirectResponse(f"/candidates/{cid}", status_code=303)
@@ -306,12 +325,16 @@ async def workspace(request: Request, cid: int):
         "SELECT role, content, actions_json, created_at FROM workspace_conversations WHERE candidate_id=? ORDER BY created_at ASC",
         (cid,)
     ).fetchall()
+    fit_row = conn.execute(
+        "SELECT * FROM fit_assessments WHERE candidate_id=? ORDER BY created_at DESC LIMIT 1", (cid,)
+    ).fetchone()
     conn.close()
     return templates.TemplateResponse("workspace.html", {
         "request": request,
         "candidate": dict(candidate),
         "skills": [dict(s) for s in skills],
         "history": [dict(h) for h in history],
+        "fit": dict(fit_row) if fit_row else None,
     })
 
 
@@ -334,8 +357,13 @@ async def workspace_chat(cid: int, request: Request):
         (cid,)
     ).fetchall()
 
+    fit_row = conn.execute(
+        "SELECT * FROM fit_assessments WHERE candidate_id=? ORDER BY created_at DESC LIMIT 1", (cid,)
+    ).fetchone()
+
     display_text, actions = agent_chat(
-        dict(candidate), [dict(s) for s in skills], [dict(h) for h in history], user_message
+        dict(candidate), [dict(s) for s in skills], [dict(h) for h in history], user_message,
+        fit=dict(fit_row) if fit_row else None
     )
 
     # Save conversation
@@ -394,6 +422,19 @@ async def workspace_chat(cid: int, request: Request):
                     relation_type="equivalent", strength=float(act.get("strength", 1.0)), source="ai"
                 ))
                 executed.append(act)
+        elif action_type == "override_fit":
+            fit_level = act.get("level", "").strip()
+            fit_rationale = act.get("rationale", "").strip()
+            fit_score = act.get("score")
+            if fit_level:
+                if fit_score is None:
+                    level_scores = {"strong": 0.85, "good": 0.6, "weak": 0.35, "poor": 0.15}
+                    fit_score = level_scores.get(fit_level, 0.5)
+                conn.execute(
+                    "INSERT INTO fit_assessments (candidate_id, fit_score, fit_level, rationale, breakdown_json, assessed_by) VALUES (?,?,?,?,?,?)",
+                    (cid, fit_score, fit_level, fit_rationale, json.dumps({"override": True}), "ai")
+                )
+                executed.append(act)
         elif action_type == "set_note":
             skill_name = act.get("skill_name")
             note = act.get("note")
@@ -403,11 +444,17 @@ async def workspace_chat(cid: int, request: Request):
 
     conn.commit()
 
-    # Return updated skills
+    # Return updated skills and fit
     skills = conn.execute("SELECT * FROM skill_assessments WHERE candidate_id=?", (cid,)).fetchall()
+    fit_row = conn.execute(
+        "SELECT * FROM fit_assessments WHERE candidate_id=? ORDER BY created_at DESC LIMIT 1", (cid,)
+    ).fetchone()
     conn.close()
 
-    return {"message": display_text, "actions": executed, "skills": [dict(s) for s in skills]}
+    result = {"message": display_text, "actions": executed, "skills": [dict(s) for s in skills]}
+    if fit_row:
+        result["fit"] = dict(fit_row)
+    return result
 
 
 @app.patch("/api/workspace/{cid}/skills/{skill_id}")
@@ -439,6 +486,42 @@ async def patch_skill(cid: int, skill_id: int, request: Request):
     updated = conn.execute("SELECT * FROM skill_assessments WHERE id=?", (skill_id,)).fetchone()
     conn.close()
     return dict(updated)
+
+
+@app.patch("/api/workspace/{cid}/fit")
+async def patch_fit(cid: int, request: Request):
+    body = await request.json()
+    conn = get_db()
+    candidate = conn.execute("SELECT id FROM candidates WHERE id=?", (cid,)).fetchone()
+    if not candidate:
+        conn.close()
+        raise HTTPException(404, "Candidate not found")
+
+    fit_level = body.get("fit_level", "").strip()
+    rationale = body.get("rationale", "").strip()
+    fit_score = body.get("fit_score")
+    assessed_by = body.get("assessed_by", "human")
+
+    if not fit_level:
+        conn.close()
+        raise HTTPException(400, "fit_level required")
+
+    # Map level to score if not provided
+    if fit_score is None:
+        level_scores = {"strong": 0.85, "good": 0.6, "weak": 0.35, "poor": 0.15}
+        fit_score = level_scores.get(fit_level, 0.5)
+    fit_score = max(0.0, min(1.0, float(fit_score)))
+
+    conn.execute(
+        "INSERT INTO fit_assessments (candidate_id, fit_score, fit_level, rationale, breakdown_json, assessed_by) VALUES (?,?,?,?,?,?)",
+        (cid, fit_score, fit_level, rationale, json.dumps({"override": True}), assessed_by)
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT * FROM fit_assessments WHERE candidate_id=? ORDER BY created_at DESC LIMIT 1", (cid,)
+    ).fetchone()
+    conn.close()
+    return dict(row)
 
 
 @app.post("/api/workspace/{cid}/skills")
@@ -723,11 +806,28 @@ def _process_submission(submission_id: str, integration: dict, body: SubmissionC
         # Select tests
         tests = select_tests(skills)
 
+        # Run fit assessment
+        fit_data = {}
+        try:
+            skill_dicts = [{"skill_name": s.skill_name, "category": s.category,
+                             "llm_confidence": (s.llm_confidence).value,
+                             "final_confidence": (s.final_confidence or s.llm_confidence).value} for s in skills]
+            fit = assess_fit(skill_dicts)
+            conn.execute(
+                "INSERT INTO fit_assessments (candidate_id, fit_score, fit_level, rationale, breakdown_json, assessed_by) VALUES (?,?,?,?,?,?)",
+                (cid, fit.fit_score, fit.fit_level, fit.rationale, json.dumps(fit.breakdown), "system")
+            )
+            conn.commit()
+            fit_data = {"fit_score": fit.fit_score, "fit_level": fit.fit_level, "fit_rationale": fit.rationale}
+        except Exception:
+            pass
+
         # Build results
         results = {
             "candidate_id": cid,
             "skills": [{"name": s.skill_name, "category": s.category, "confidence": (s.final_confidence or s.llm_confidence).value} for s in skills],
             "recommended_tests": [{"id": t.id, "name": t.name, "category": t.category} for t in tests],
+            **fit_data,
         }
 
         update_submission(submission_id, status="completed", candidate_id=cid, results=json.dumps(results))

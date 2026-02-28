@@ -146,6 +146,19 @@ def init_db():
         FOREIGN KEY (employer_interpretation_id) REFERENCES employer_interpretations(id),
         FOREIGN KEY (skill_concept_id) REFERENCES skill_concepts(id)
     );
+    CREATE TABLE IF NOT EXISTS fit_assessments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidate_id INTEGER NOT NULL,
+        role_archetype_id INTEGER,
+        fit_score REAL NOT NULL,
+        fit_level TEXT NOT NULL,
+        rationale TEXT DEFAULT '',
+        breakdown_json TEXT DEFAULT '{}',
+        assessed_by TEXT DEFAULT 'system',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (candidate_id) REFERENCES candidates(id),
+        FOREIGN KEY (role_archetype_id) REFERENCES role_archetypes(id)
+    );
     CREATE TABLE IF NOT EXISTS skill_overrides (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         candidate_id INTEGER NOT NULL,

@@ -32,7 +32,8 @@ To modify the analysis, include a fenced JSON block like this in your response:
   {{"action": "set_note", "skill_name": "Python", "note": "Strong evidence from multiple projects"}},
   {{"action": "add_equivalency", "skill_name": "React", "equivalent_to": "Frontend Development"}},
   {{"action": "learn_skill_concept", "name": "React Native", "category": "framework", "description": "Cross-platform mobile framework"}},
-  {{"action": "learn_equivalency", "skill_name": "React.js", "equivalent_to": "React", "strength": 1.0}}
+  {{"action": "learn_equivalency", "skill_name": "React.js", "equivalent_to": "React", "strength": 1.0}},
+  {{"action": "override_fit", "level": "strong", "rationale": "Candidate shows exceptional depth in core skills", "score": 0.85}}
 ]
 ```
 
@@ -72,7 +73,7 @@ def _parse_actions(text: str) -> tuple[str, list[dict]]:
     return clean_text, actions
 
 
-def chat(candidate: dict, skills: list[dict], history: list[dict], user_message: str) -> tuple[str, list[dict]]:
+def chat(candidate: dict, skills: list[dict], history: list[dict], user_message: str, fit: dict = None) -> tuple[str, list[dict]]:
     """Process a chat message. Returns (display_message, actions)."""
     # Add knowledge base context
     kb_context = ""
@@ -82,12 +83,21 @@ def chat(candidate: dict, skills: list[dict], history: list[dict], user_message:
     except Exception:
         pass
 
+    fit_context = ""
+    if fit:
+        fit_context = (
+            f"\n## Current Fit Assessment\n"
+            f"**Score:** {fit.get('fit_score', 0):.0%} ({fit.get('fit_level', 'unknown')})\n"
+            f"**Rationale:** {fit.get('rationale', 'N/A')}\n"
+            f"**Assessed by:** {fit.get('assessed_by', 'system')}\n"
+        )
+
     system = SYSTEM_PROMPT_TEMPLATE.format(
         name=candidate.get("name", "Unknown"),
         email=candidate.get("email", ""),
         resume_text=candidate.get("resume_text", "(no resume text)"),
         skills_summary=_build_skills_summary(skills),
-    ) + kb_context
+    ) + fit_context + kb_context
 
     messages = []
     for h in history:

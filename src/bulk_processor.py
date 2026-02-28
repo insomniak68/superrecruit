@@ -36,6 +36,8 @@ class CandidateResult:
     parsed_data: dict = field(default_factory=dict)
     status: str = "pending"
     error: str = ""
+    fit_score: float = 0.0
+    fit_level: str = ""
 
     @property
     def skills_count(self) -> int:
@@ -67,6 +69,8 @@ class CandidateResult:
             "avg_confidence": self.avg_confidence,
             "top_skills": self.top_skills,
             "tests_assigned": self.tests_assigned,
+            "fit_score": self.fit_score,
+            "fit_level": self.fit_level,
             "status": self.status,
             "error": self.error,
             "skills": [s.model_dump() for s in self.skills],
@@ -82,6 +86,8 @@ class CandidateResult:
             "avg_confidence": self.avg_confidence,
             "top_skills": self.top_skills,
             "tests_assigned": self.tests_assigned,
+            "fit_score": self.fit_score,
+            "fit_level": self.fit_level,
             "status": self.status,
             "error": self.error,
         }
@@ -141,6 +147,18 @@ def process_single_resume(pdf_path: str) -> CandidateResult:
 
         tests = select_tests(skills)
         result.tests = tests
+
+        # Fit assessment
+        try:
+            from .fit_assessor import assess_fit
+            skill_dicts = [{"skill_name": s.skill_name, "category": s.category,
+                             "llm_confidence": s.llm_confidence,
+                             "final_confidence": s.final_confidence} for s in skills]
+            fit = assess_fit(skill_dicts)
+            result.fit_score = fit.fit_score
+            result.fit_level = fit.fit_level
+        except Exception as e:
+            logger.warning(f"Fit assessment failed for {pdf_path}: {e}")
 
         result.status = "success"
     except Exception as e:
@@ -219,7 +237,8 @@ def write_output(progress: BulkProgress, output_dir: str) -> None:
 
     # summary.csv
     csv_columns = ["filename", "candidate_name", "email", "skills_count",
-                    "avg_confidence", "top_skills", "tests_assigned", "status", "error"]
+                    "avg_confidence", "top_skills", "tests_assigned",
+                    "fit_score", "fit_level", "status", "error"]
     with open(os.path.join(output_dir, "summary.csv"), "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=csv_columns)
         writer.writeheader()
