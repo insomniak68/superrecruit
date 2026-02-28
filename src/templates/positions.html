@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Position Profiles — SuperRecruit{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Position Profiles</h1>
+    <div class="flex gap-2">
+        <button onclick="showCreateForm()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">+ Create Position</button>
+        <button onclick="showParseForm()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">📋 From Job Posting</button>
+    </div>
+</div>
+
+<!-- Parse Job Posting Form -->
+<div id="parse-form" class="hidden mb-6 bg-white rounded-lg shadow p-6">
+    <h2 class="font-semibold mb-3">Parse Job Posting</h2>
+    <textarea id="job-posting-text" rows="8" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-300 focus:outline-none" placeholder="Paste job posting text here..."></textarea>
+    <div class="flex justify-end gap-2 mt-3">
+        <button onclick="document.getElementById('parse-form').classList.add('hidden')" class="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+        <button onclick="parseJobPosting()" id="parse-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">Parse & Create</button>
+    </div>
+</div>
+
+<!-- Create/Edit Form -->
+<div id="create-form" class="hidden mb-6 bg-white rounded-lg shadow p-6">
+    <h2 class="font-semibold mb-3" id="form-title">Create Position Profile</h2>
+    <input type="hidden" id="edit-id" value="">
+    <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input type="text" id="pos-title" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <input type="text" id="pos-department" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+        </div>
+    </div>
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <textarea id="pos-description" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none"></textarea>
+    </div>
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Min Experience (years)</label>
+        <input type="number" id="pos-experience" value="0" min="0" class="w-32 border rounded-lg px-3 py-2 text-sm">
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Required Skills</label>
+            <div id="required-skills-list" class="space-y-2"></div>
+            <button onclick="addSkillRow('required')" class="mt-2 text-sm text-indigo-600 hover:underline">+ Add required skill</button>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Preferred Skills</label>
+            <div id="preferred-skills-list" class="space-y-2"></div>
+            <button onclick="addSkillRow('preferred')" class="mt-2 text-sm text-indigo-600 hover:underline">+ Add preferred skill</button>
+        </div>
+    </div>
+    <div class="flex justify-end gap-2">
+        <button onclick="hideCreateForm()" class="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+        <button onclick="savePosition()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">Save</button>
+    </div>
+</div>
+
+<!-- Positions List -->
+<div class="space-y-4" id="positions-list">
+    {% for p in positions %}
+    <div class="bg-white rounded-lg shadow p-5" id="pos-{{ p.id }}">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+                <h3 class="text-lg font-semibold">{{ p.title }}</h3>
+                {% if p.department %}<span class="text-sm text-gray-500">{{ p.department }}</span>{% endif %}
+                {% if p.is_active %}
+                <span class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-bold">ACTIVE</span>
+                {% endif %}
+            </div>
+            <div class="flex gap-2">
+                {% if not p.is_active %}
+                <button onclick="activatePosition({{ p.id }})" class="text-xs bg-green-50 text-green-700 px-3 py-1 rounded hover:bg-green-100 border border-green-200">Activate</button>
+                {% endif %}
+                <button onclick="editPosition({{ p.id }})" class="text-xs bg-gray-50 text-gray-700 px-3 py-1 rounded hover:bg-gray-100 border">Edit</button>
+                <button onclick="deletePosition({{ p.id }})" class="text-xs bg-red-50 text-red-700 px-3 py-1 rounded hover:bg-red-100 border border-red-200">Delete</button>
+            </div>
+        </div>
+        {% if p.description %}
+        <p class="text-sm text-gray-600 mb-3">{{ p.description[:200] }}</p>
+        {% endif %}
+        <div class="flex gap-6 text-sm">
+            <div>
+                <span class="text-gray-500">Required:</span>
+                {% for s in p.required_skills %}
+                <span class="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs ml-1">{{ s.skill_name }}</span>
+                {% endfor %}
+                {% if not p.required_skills %}<span class="text-gray-400 ml-1">None</span>{% endif %}
+            </div>
+            <div>
+                <span class="text-gray-500">Preferred:</span>
+                {% for s in p.preferred_skills %}
+                <span class="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs ml-1">{{ s.skill_name }}</span>
+                {% endfor %}
+                {% if not p.preferred_skills %}<span class="text-gray-400 ml-1">None</span>{% endif %}
+            </div>
+            {% if p.min_experience_years > 0 %}
+            <div><span class="text-gray-500">Min exp:</span> <span class="text-gray-700">{{ p.min_experience_years }}y</span></div>
+            {% endif %}
+        </div>
+        <div class="text-xs text-gray-400 mt-2">Created {{ p.created_at }} · {{ p.created_by }}</div>
+    </div>
+    {% endfor %}
+    {% if not positions %}
+    <div class="text-center py-12 text-gray-400">
+        <p class="text-lg mb-2">No position profiles yet</p>
+        <p class="text-sm">Create one manually or parse from a job posting.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function showParseForm() {
+    document.getElementById('parse-form').classList.remove('hidden');
+    document.getElementById('create-form').classList.add('hidden');
+}
+
+function showCreateForm() {
+    document.getElementById('create-form').classList.remove('hidden');
+    document.getElementById('parse-form').classList.add('hidden');
+    document.getElementById('form-title').textContent = 'Create Position Profile';
+    document.getElementById('edit-id').value = '';
+    document.getElementById('pos-title').value = '';
+    document.getElementById('pos-department').value = '';
+    document.getElementById('pos-description').value = '';
+    document.getElementById('pos-experience').value = '0';
+    document.getElementById('required-skills-list').innerHTML = '';
+    document.getElementById('preferred-skills-list').innerHTML = '';
+}
+
+function hideCreateForm() {
+    document.getElementById('create-form').classList.add('hidden');
+}
+
+function addSkillRow(type, name='', minConf=0.5, weight=1.0) {
+    const list = document.getElementById(type + '-skills-list');
+    const row = document.createElement('div');
+    row.className = 'flex gap-2 items-center';
+    row.innerHTML = `
+        <input type="text" value="${name}" placeholder="Skill name" class="flex-1 border rounded px-2 py-1 text-sm skill-name">
+        <input type="number" value="${minConf}" step="0.1" min="0" max="1" class="w-20 border rounded px-2 py-1 text-sm skill-conf" title="Min confidence">
+        <input type="number" value="${weight}" step="0.1" min="0" class="w-20 border rounded px-2 py-1 text-sm skill-weight" title="Weight">
+        <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600">✕</button>
+    `;
+    list.appendChild(row);
+}
+
+function getSkillsFromList(type) {
+    const rows = document.getElementById(type + '-skills-list').querySelectorAll('div');
+    const skills = [];
+    rows.forEach(row => {
+        const name = row.querySelector('.skill-name').value.trim();
+        if (name) {
+            skills.push({
+                skill_name: name,
+                min_confidence: parseFloat(row.querySelector('.skill-conf').value) || 0.5,
+                weight: parseFloat(row.querySelector('.skill-weight').value) || 1.0,
+            });
+        }
+    });
+    return skills;
+}
+
+async function savePosition() {
+    const editId = document.getElementById('edit-id').value;
+    const data = {
+        title: document.getElementById('pos-title').value.trim(),
+        department: document.getElementById('pos-department').value.trim(),
+        description: document.getElementById('pos-description').value.trim(),
+        min_experience_years: parseInt(document.getElementById('pos-experience').value) || 0,
+        required_skills: getSkillsFromList('required'),
+        preferred_skills: getSkillsFromList('preferred'),
+    };
+    if (!data.title) return alert('Title is required');
+    const url = editId ? `/api/positions/${editId}` : '/api/positions';
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, {method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+    if (res.ok) location.reload();
+    else alert('Error: ' + (await res.json()).detail);
+}
+
+async function parseJobPosting() {
+    const text = document.getElementById('job-posting-text').value.trim();
+    if (!text) return alert('Paste job posting text first');
+    const btn = document.getElementById('parse-btn');
+    btn.disabled = true;
+    btn.textContent = 'Parsing...';
+    try {
+        const res = await fetch('/api/positions/from-posting', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text})
+        });
+        if (res.ok) location.reload();
+        else alert('Error: ' + (await res.json()).detail);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Parse & Create';
+    }
+}
+
+async function editPosition(id) {
+    const res = await fetch(`/api/positions/${id}`);
+    const p = await res.json();
+    document.getElementById('create-form').classList.remove('hidden');
+    document.getElementById('parse-form').classList.add('hidden');
+    document.getElementById('form-title').textContent = 'Edit Position Profile';
+    document.getElementById('edit-id').value = id;
+    document.getElementById('pos-title').value = p.title;
+    document.getElementById('pos-department').value = p.department;
+    document.getElementById('pos-description').value = p.description;
+    document.getElementById('pos-experience').value = p.min_experience_years;
+    document.getElementById('required-skills-list').innerHTML = '';
+    document.getElementById('preferred-skills-list').innerHTML = '';
+    (p.required_skills || []).forEach(s => addSkillRow('required', s.skill_name, s.min_confidence, s.weight));
+    (p.preferred_skills || []).forEach(s => addSkillRow('preferred', s.skill_name, s.min_confidence, s.weight));
+}
+
+async function deletePosition(id) {
+    if (!confirm('Delete this position profile?')) return;
+    const res = await fetch(`/api/positions/${id}`, {method: 'DELETE'});
+    if (res.ok) document.getElementById('pos-' + id).remove();
+}
+
+async function activatePosition(id) {
+    const res = await fetch(`/api/positions/${id}/activate`, {method: 'POST'});
+    if (res.ok) location.reload();
+}
+</script>
+{% endblock %}

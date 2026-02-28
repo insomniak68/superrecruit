@@ -23,6 +23,11 @@ from .integrations import (
 )
 from .webhooks import dispatch_webhook
 from .fit_assessor import assess_fit
+from .position_profiles import (
+    create_position, get_position, list_positions, update_position,
+    delete_position, activate_position, get_active_position, parse_job_posting,
+)
+from .models import PositionProfileCreate, PositionProfileUpdate, JobPostingInput
 
 app = FastAPI(title="SuperRecruit", version="1.0.0")
 
@@ -181,7 +186,16 @@ async def upload_resume(file: UploadFile = File(...), name: str = Form(...), ema
                      "llm_confidence": s.llm_confidence.value,
                      "final_confidence": (s.final_confidence or s.llm_confidence).value} for s in skills]
     try:
-        fit = assess_fit(skill_dicts)
+        # Use active position profile if available
+        active_pos = get_active_position()
+        position_profile = None
+        if active_pos:
+            position_profile = {
+                "name": active_pos.title,
+                "core_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.required_skills],
+                "adjacent_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.preferred_skills],
+            }
+        fit = assess_fit(skill_dicts, position_profile=position_profile)
         conn.execute(
             "INSERT INTO fit_assessments (candidate_id, fit_score, fit_level, rationale, breakdown_json, assessed_by) VALUES (?,?,?,?,?,?)",
             (cid, fit.fit_score, fit.fit_level, fit.rationale, json.dumps(fit.breakdown), "system")
@@ -302,6 +316,71 @@ async def bulk_status(job_id: str):
     if not progress:
         raise HTTPException(404, "Job not found")
     return progress.to_dict()
+
+
+# ── Position Profiles ──
+
+@app.get("/positions", response_class=HTMLResponse)
+async def positions_page(request: Request):
+    positions = list_positions()
+    return templates.TemplateResponse("positions.html", {"request": request, "positions": [p.model_dump() for p in positions]})
+
+
+@app.post("/api/positions")
+async def api_create_position(request: Request):
+    body = await request.json()
+    data = PositionProfileCreate(**body)
+    position = create_position(data)
+    return position.model_dump()
+
+
+@app.post("/api/positions/from-posting")
+async def api_create_from_posting(request: Request):
+    body = await request.json()
+    text = body.get("text", "").strip()
+    if not text:
+        raise HTTPException(400, "Job posting text is required")
+    parsed = parse_job_posting(text)
+    position = create_position(parsed, created_by="job_parser")
+    return position.model_dump()
+
+
+@app.get("/api/positions")
+async def api_list_positions():
+    return [p.model_dump() for p in list_positions()]
+
+
+@app.get("/api/positions/{pid}")
+async def api_get_position(pid: int):
+    p = get_position(pid)
+    if not p:
+        raise HTTPException(404, "Position not found")
+    return p.model_dump()
+
+
+@app.put("/api/positions/{pid}")
+async def api_update_position(pid: int, request: Request):
+    body = await request.json()
+    data = PositionProfileUpdate(**body)
+    p = update_position(pid, data)
+    if not p:
+        raise HTTPException(404, "Position not found")
+    return p.model_dump()
+
+
+@app.delete("/api/positions/{pid}")
+async def api_delete_position(pid: int):
+    if not delete_position(pid):
+        raise HTTPException(404, "Position not found")
+    return {"ok": True}
+
+
+@app.post("/api/positions/{pid}/activate")
+async def api_activate_position(pid: int):
+    p = activate_position(pid)
+    if not p:
+        raise HTTPException(404, "Position not found")
+    return p.model_dump()
 
 
 @app.get("/api/test-bank")
@@ -812,7 +891,15 @@ def _process_submission(submission_id: str, integration: dict, body: SubmissionC
             skill_dicts = [{"skill_name": s.skill_name, "category": s.category,
                              "llm_confidence": (s.llm_confidence).value,
                              "final_confidence": (s.final_confidence or s.llm_confidence).value} for s in skills]
-            fit = assess_fit(skill_dicts)
+            active_pos = get_active_position()
+            position_profile = None
+            if active_pos:
+                position_profile = {
+                    "name": active_pos.title,
+                    "core_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.required_skills],
+                    "adjacent_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.preferred_skills],
+                }
+            fit = assess_fit(skill_dicts, position_profile=position_profile)
             conn.execute(
                 "INSERT INTO fit_assessments (candidate_id, fit_score, fit_level, rationale, breakdown_json, assessed_by) VALUES (?,?,?,?,?,?)",
                 (cid, fit.fit_score, fit.fit_level, fit.rationale, json.dumps(fit.breakdown), "system")

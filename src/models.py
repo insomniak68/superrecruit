@@ -34,6 +34,48 @@ class CandidateResponse(BaseModel):
     created_at: str
 
 
+class SkillRequirement(BaseModel):
+    skill_name: str
+    min_confidence: float = 0.0
+    weight: float = 1.0
+
+
+class PositionProfileCreate(BaseModel):
+    title: str
+    department: str = ""
+    description: str = ""
+    required_skills: list[SkillRequirement] = []
+    preferred_skills: list[SkillRequirement] = []
+    min_experience_years: int = 0
+
+
+class PositionProfileUpdate(BaseModel):
+    title: Optional[str] = None
+    department: Optional[str] = None
+    description: Optional[str] = None
+    required_skills: Optional[list[SkillRequirement]] = None
+    preferred_skills: Optional[list[SkillRequirement]] = None
+    min_experience_years: Optional[int] = None
+
+
+class PositionProfileResponse(BaseModel):
+    id: int
+    title: str
+    department: str
+    description: str
+    required_skills: list[SkillRequirement]
+    preferred_skills: list[SkillRequirement]
+    min_experience_years: int
+    created_at: str
+    updated_at: str
+    is_active: bool
+    created_by: str
+
+
+class JobPostingInput(BaseModel):
+    text: str
+
+
 class TestQuestion(BaseModel):
     id: str
     type: str  # coding, multiple_choice, short_answer, code_review

@@ -159,6 +159,19 @@ def init_db():
         FOREIGN KEY (candidate_id) REFERENCES candidates(id),
         FOREIGN KEY (role_archetype_id) REFERENCES role_archetypes(id)
     );
+    CREATE TABLE IF NOT EXISTS position_profiles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        department TEXT DEFAULT '',
+        description TEXT DEFAULT '',
+        required_skills TEXT DEFAULT '[]',
+        preferred_skills TEXT DEFAULT '[]',
+        min_experience_years INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active INTEGER DEFAULT 0,
+        created_by TEXT DEFAULT 'manual'
+    );
     CREATE TABLE IF NOT EXISTS skill_overrides (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         candidate_id INTEGER NOT NULL,
