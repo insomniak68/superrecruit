@@ -18,6 +18,11 @@ from .bulk_processor import process_bulk, write_output, BulkProgress
 
 app = FastAPI(title="SuperRecruit", version="1.0.0")
 
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 # In-memory store for bulk jobs
 _bulk_jobs: dict[str, BulkProgress] = {}
 

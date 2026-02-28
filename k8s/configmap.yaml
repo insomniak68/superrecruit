@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: superrecruit-config
+  namespace: superrecruit
+data:
+  SR_DB_PATH: "/data/superrecruit.db"
+  SR_HOST: "0.0.0.0"
+  SR_PORT: "8000"
+  SR_BASE_URL: "http://superrecruit.superrecruit.svc.cluster.local"
+  SR_LLM_MODEL: "claude-sonnet-4-20250514"
+  SR_SMTP_PORT: "587"
+  SR_SMTP_FROM: "assessments@superrecruit.dev"

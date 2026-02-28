@@ -1,7 +1,12 @@
+.venv/
+__pycache__/
 data/
 *.db
-config/config.yaml
-__pycache__/
-*.pyc
 .env
+*.pyc
 uploads/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+config/config.yaml

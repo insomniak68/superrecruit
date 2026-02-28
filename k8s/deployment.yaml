@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: superrecruit
   namespace: superrecruit
+  labels:
+    app: superrecruit
 spec:
   replicas: 1
   selector:
@@ -15,53 +17,52 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: razer
-      initContainers:
-        - name: setup
-          image: python:3.12-slim
-          command:
-            - /bin/bash
-            - -c
-            - |
-              apt-get update && apt-get install -y git
-              cd /app
-              if [ ! -f requirements.txt ]; then
-                git clone https://github.com/insomniak68/superrecruit.git .
-              fi
-              pip install --no-cache-dir --target=/app/deps -r requirements.txt
-          volumeMounts:
-            - name: app
-              mountPath: /app
-            - name: data
-              mountPath: /data
       containers:
         - name: superrecruit
-          image: python:3.12-slim
-          command:
-            - /bin/bash
-            - -c
-            - |
-              export PYTHONPATH=/app/deps:/app
-              python -m uvicorn src.main:app --host 0.0.0.0 --port 8000
-          workingDir: /app
+          image: superrecruit:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: superrecruit-config
           env:
-            - name: SR_DB_PATH
-              value: /data/superrecruit.db
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: superrecruit-api-key
+                  name: superrecruit-secrets
                   key: ANTHROPIC_API_KEY
+            - name: SR_SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: superrecruit-secrets
+                  key: SR_SMTP_PASSWORD
+                  optional: true
           volumeMounts:
-            - name: app
-              mountPath: /app
             - name: data
               mountPath: /data
-              subPath: data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
       volumes:
-        - name: app
-          emptyDir: {}
         - name: data
           persistentVolumeClaim:
             claimName: superrecruit-data

@@ -1,0 +1,26 @@
+# Ingress template — uncomment and adjust for your domain/TLS setup
+#
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: superrecruit
+#   namespace: superrecruit
+#   annotations:
+#     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+#     cert-manager.io/cluster-issuer: letsencrypt-prod
+# spec:
+#   tls:
+#     - hosts:
+#         - recruit.example.com
+#       secretName: superrecruit-tls
+#   rules:
+#     - host: recruit.example.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: superrecruit
+#                 port:
+#                   number: 80
