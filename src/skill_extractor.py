@@ -1,9 +1,10 @@
 import json
+import os
 import anthropic
 from .models import SkillAssessment, Confidence
 
-API_KEY = "REDACTED"
-MODEL = "claude-sonnet-4-20250514"
+API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
 PROMPT = """Analyze this resume and extract all technical and professional skills claimed.
 
