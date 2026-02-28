@@ -1,0 +1,78 @@
+id: git_version_control
+name: "Git & Version Control"
+category: devops
+skill_tags: ["git", "version control", "github"]
+time_limit_minutes: 15
+passing_score: 60
+questions:
+  - id: git_001
+    type: multiple_choice
+    difficulty: medium
+    prompt: "What is the difference between `git merge` and `git rebase`?"
+    options:
+      - "merge creates a merge commit preserving branch history; rebase replays commits on top of target branch creating linear history"
+      - "merge is faster than rebase"
+      - "rebase can only be used on the main branch"
+      - "merge deletes the source branch; rebase preserves it"
+    correct_answer: "A"
+    points: 10
+
+  - id: git_002
+    type: short_answer
+    difficulty: medium
+    prompt: |
+      You accidentally committed a file with secrets (API keys) 3 commits ago.
+      The commits have been pushed to a shared remote. How do you remove the secret
+      from the entire git history? What are the implications for other team members?
+    rubric: |
+      - Mentions git filter-branch or BFG Repo Cleaner (3 pts)
+      - Force push required (2 pts)
+      - Team members need to re-clone or reset (2 pts)
+      - Rotate the exposed secrets (2 pts)
+      - Mentions .gitignore / pre-commit hooks for prevention (1 pt)
+    points: 10
+
+  - id: git_003
+    type: multiple_choice
+    difficulty: easy
+    prompt: "What does `git stash` do?"
+    options:
+      - "Permanently deletes uncommitted changes"
+      - "Temporarily saves uncommitted changes so you can switch branches"
+      - "Creates a new branch with current changes"
+      - "Commits changes with a temporary message"
+    correct_answer: "B"
+    points: 5
+
+  - id: git_004
+    type: multiple_choice
+    difficulty: hard
+    prompt: |
+      You have this git history:
+      ```
+      A - B - C (main)
+           \
+            D - E (feature)
+      ```
+      You run `git rebase main` while on the feature branch.
+      What does the history look like after?
+    options:
+      - "A - B - C - D - E (feature), A - B - C (main)"
+      - "A - B - C - D' - E' (feature), A - B - C (main)"
+      - "A - B - D - E - C (main)"
+      - "A - B - C - merge_commit (main)"
+    correct_answer: "B"
+    points: 10
+
+  - id: git_005
+    type: short_answer
+    difficulty: medium
+    prompt: |
+      Describe the Git Flow branching strategy. What branches does it use,
+      and when would you use each? When might you choose trunk-based development instead?
+    rubric: |
+      - Lists branches: main, develop, feature, release, hotfix (3 pts)
+      - Describes when each is used (3 pts)
+      - Trunk-based: describes continuous integration approach (2 pts)
+      - Trade-offs between the two (2 pts)
+    points: 10

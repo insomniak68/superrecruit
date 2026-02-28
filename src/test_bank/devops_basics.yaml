@@ -1,0 +1,79 @@
+id: devops_basics
+name: "DevOps Basics"
+category: devops
+skill_tags: ["devops", "ci/cd", "docker", "containers", "kubernetes", "k8s"]
+time_limit_minutes: 20
+passing_score: 60
+questions:
+  - id: devops_001
+    type: multiple_choice
+    difficulty: medium
+    prompt: "What is the primary benefit of containerization (e.g., Docker) over traditional VMs?"
+    options:
+      - "Containers are more secure than VMs"
+      - "Containers share the host OS kernel, resulting in faster startup and lower overhead"
+      - "Containers can run any operating system"
+      - "Containers eliminate the need for orchestration"
+    correct_answer: "B"
+    points: 10
+
+  - id: devops_002
+    type: short_answer
+    difficulty: medium
+    prompt: |
+      Write a multi-stage Dockerfile for a Node.js application that:
+      1. Uses node:20-alpine as the build stage
+      2. Installs dependencies and builds the app
+      3. Uses a minimal runtime stage (node:20-alpine)
+      4. Copies only the built artifacts
+      5. Runs as a non-root user
+      6. Exposes port 3000
+    rubric: |
+      - Multi-stage build with FROM ... AS builder (3 pts)
+      - COPY package*.json and npm ci for deps (2 pts)
+      - Separate COPY for source and build step (2 pts)
+      - Minimal runtime stage (2 pts)
+      - Non-root user (USER directive) (2 pts)
+      - EXPOSE and CMD correct (1 pt)
+    points: 12
+
+  - id: devops_003
+    type: multiple_choice
+    difficulty: easy
+    prompt: "What does CI/CD stand for?"
+    options:
+      - "Code Integration / Code Deployment"
+      - "Continuous Integration / Continuous Delivery (or Deployment)"
+      - "Container Integration / Container Distribution"
+      - "Central Infrastructure / Central Database"
+    correct_answer: "B"
+    points: 5
+
+  - id: devops_004
+    type: short_answer
+    difficulty: hard
+    prompt: |
+      Design a CI/CD pipeline for a microservices application with 5 services.
+      Include: trigger conditions, build steps, testing stages, deployment strategy,
+      and rollback plan. How do you handle a failure in one service's pipeline
+      without blocking others?
+    rubric: |
+      - Trigger: PR/push to specific paths (2 pts)
+      - Build: per-service Docker build (2 pts)
+      - Test: unit, integration, e2e stages (3 pts)
+      - Deploy: rolling/canary/blue-green strategy (3 pts)
+      - Rollback: automated or manual process (2 pts)
+      - Independent pipelines per service (2 pts)
+    points: 14
+
+  - id: devops_005
+    type: multiple_choice
+    difficulty: medium
+    prompt: "In Kubernetes, what is the role of a ReplicaSet?"
+    options:
+      - "It manages storage volumes"
+      - "It ensures a specified number of pod replicas are running at all times"
+      - "It routes traffic between services"
+      - "It manages secrets and config maps"
+    correct_answer: "B"
+    points: 10

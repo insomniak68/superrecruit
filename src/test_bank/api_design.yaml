@@ -1,0 +1,77 @@
+id: api_design
+name: "API Design"
+category: programming
+skill_tags: ["api", "rest", "api design", "restful"]
+time_limit_minutes: 20
+passing_score: 60
+questions:
+  - id: api_001
+    type: short_answer
+    difficulty: medium
+    prompt: |
+      Design the REST API endpoints for a library management system.
+      Include endpoints for: books, members, borrowing/returning books, and search.
+      For each endpoint, specify: HTTP method, path, request body (if any), and response format.
+      Include proper status codes and pagination for list endpoints.
+    rubric: |
+      - Resource-oriented URLs (3 pts)
+      - Correct HTTP methods (GET/POST/PUT/DELETE) (3 pts)
+      - Proper status codes (201, 404, 409, etc.) (3 pts)
+      - Pagination support (2 pts)
+      - Search/filter query params (2 pts)
+      - Nested resources where appropriate (2 pts)
+    points: 15
+
+  - id: api_002
+    type: multiple_choice
+    difficulty: easy
+    prompt: "Which HTTP status code should be returned when a resource is successfully created?"
+    options:
+      - "200 OK"
+      - "201 Created"
+      - "204 No Content"
+      - "202 Accepted"
+    correct_answer: "B"
+    points: 5
+
+  - id: api_003
+    type: multiple_choice
+    difficulty: medium
+    prompt: |
+      Which authentication pattern is most appropriate for a public API consumed by third-party mobile apps?
+    options:
+      - "Session cookies"
+      - "Basic Auth over HTTPS"
+      - "OAuth 2.0 with PKCE flow"
+      - "API key in query string"
+    correct_answer: "C"
+    points: 5
+
+  - id: api_004
+    type: short_answer
+    difficulty: hard
+    prompt: |
+      Explain three different API versioning strategies (URL path, header, query param).
+      For each, give an example and list one advantage and one disadvantage.
+      Which would you recommend for a new public API and why?
+    rubric: |
+      - Describes all three strategies correctly (6 pts)
+      - Concrete examples for each (3 pts)
+      - Pros/cons are accurate (3 pts)
+      - Reasoned recommendation (3 pts)
+    points: 15
+
+  - id: api_005
+    type: short_answer
+    difficulty: medium
+    prompt: |
+      You're designing an API endpoint that triggers a long-running job (e.g., video transcoding).
+      The job takes 5-30 minutes. How would you design the API to handle this?
+      Describe the endpoints, response codes, and how the client knows when the job is done.
+    rubric: |
+      - Returns 202 Accepted with job ID (3 pts)
+      - Polling endpoint for job status (3 pts)
+      - Mentions webhook/callback as alternative (2 pts)
+      - Proper status transitions (pending/processing/completed/failed) (3 pts)
+      - Idempotency considerations (2 pts)
+    points: 13

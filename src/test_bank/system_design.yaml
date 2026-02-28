@@ -1,0 +1,138 @@
+id: system_design
+name: "System Design"
+category: methodology
+skill_tags: ["system design", "architecture", "distributed systems", "scalability"]
+time_limit_minutes: 40
+passing_score: 60
+questions:
+  - id: sd_001
+    type: multiple_choice
+    difficulty: medium
+    prompt: "Which caching strategy is best when you need strong consistency between cache and database?"
+    options:
+      - "Cache-aside (lazy loading)"
+      - "Write-through cache"
+      - "Write-behind (write-back) cache"
+      - "Read-through cache"
+    correct_answer: "B"
+    points: 5
+
+  - id: sd_002
+    type: multiple_choice
+    difficulty: medium
+    prompt: "In the CAP theorem, what does a system sacrifice when choosing AP (Availability + Partition tolerance)?"
+    options:
+      - "Scalability"
+      - "Consistency"
+      - "Durability"
+      - "Latency"
+    correct_answer: "B"
+    points: 5
+
+  - id: sd_003
+    type: short_answer
+    difficulty: hard
+    prompt: |
+      Design a URL shortener (like bit.ly) that handles 100M new URLs per month.
+      Cover: API design, database schema, how to generate short codes,
+      how to handle redirects at scale, and what happens when the same URL
+      is shortened twice.
+    rubric: |
+      - API endpoints defined (2 pts)
+      - Database schema (URL mapping table) (2 pts)
+      - Short code generation strategy (base62, counter, hash) (3 pts)
+      - Read-heavy optimization (caching, CDN) (3 pts)
+      - Collision handling (2 pts)
+      - Duplicate URL handling (2 pts)
+      - Scale considerations (sharding, replication) (3 pts)
+    points: 17
+
+  - id: sd_004
+    type: multiple_choice
+    difficulty: easy
+    prompt: "What is the primary purpose of a load balancer?"
+    options:
+      - "To encrypt traffic between client and server"
+      - "To distribute incoming traffic across multiple servers"
+      - "To cache responses for faster delivery"
+      - "To compress data before sending to clients"
+    correct_answer: "B"
+    points: 5
+
+  - id: sd_005
+    type: multiple_choice
+    difficulty: medium
+    prompt: "Which database would be MOST appropriate for storing social media user relationships (friends, followers)?"
+    options:
+      - "Relational database (PostgreSQL)"
+      - "Document store (MongoDB)"
+      - "Graph database (Neo4j)"
+      - "Key-value store (Redis)"
+    correct_answer: "C"
+    points: 5
+
+  - id: sd_006
+    type: short_answer
+    difficulty: medium
+    prompt: |
+      Explain the difference between horizontal and vertical scaling.
+      Give two specific scenarios where you'd prefer each.
+      What are the challenges unique to horizontal scaling?
+    rubric: |
+      - Correct definitions (3 pts)
+      - Two valid scenarios for each (4 pts)
+      - Challenges: state management, data consistency, complexity (3 pts)
+    points: 10
+
+  - id: sd_007
+    type: multiple_choice
+    difficulty: medium
+    prompt: "What problem does database sharding solve, and what new problem does it introduce?"
+    options:
+      - "Solves read performance; introduces write amplification"
+      - "Solves data size/write throughput limits; introduces cross-shard query complexity"
+      - "Solves network latency; introduces data duplication"
+      - "Solves backup speed; introduces schema migration difficulty"
+    correct_answer: "B"
+    points: 5
+
+  - id: sd_008
+    type: multiple_choice
+    difficulty: hard
+    prompt: |
+      You need to process 1 million events per second with at-least-once delivery.
+      Which architecture is most appropriate?
+    options:
+      - "REST API with PostgreSQL"
+      - "Apache Kafka with consumer groups"
+      - "WebSocket server with in-memory queue"
+      - "gRPC with SQLite"
+    correct_answer: "B"
+    points: 5
+
+  - id: sd_009
+    type: short_answer
+    difficulty: hard
+    prompt: |
+      Design a real-time collaborative document editor (like Google Docs).
+      Focus on: How do you handle concurrent edits from multiple users?
+      What conflict resolution strategy would you use? How do you sync state?
+    rubric: |
+      - Mentions OT (Operational Transform) or CRDT (4 pts)
+      - WebSocket for real-time communication (2 pts)
+      - Conflict resolution strategy explained (4 pts)
+      - Server architecture (stateful connections, event ordering) (3 pts)
+      - Persistence and recovery (2 pts)
+    points: 15
+
+  - id: sd_010
+    type: multiple_choice
+    difficulty: medium
+    prompt: "What is the main advantage of microservices over a monolithic architecture?"
+    options:
+      - "Microservices are always faster"
+      - "Independent deployment, scaling, and technology choices per service"
+      - "Microservices use less memory"
+      - "Microservices eliminate the need for databases"
+    correct_answer: "B"
+    points: 5

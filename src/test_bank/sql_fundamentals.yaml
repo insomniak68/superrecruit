@@ -1,0 +1,91 @@
+id: sql_fundamentals
+name: "SQL Fundamentals"
+category: database
+skill_tags: ["sql", "database", "mysql", "postgresql", "postgres"]
+time_limit_minutes: 25
+passing_score: 60
+questions:
+  - id: sql_001
+    type: coding
+    difficulty: medium
+    prompt: |
+      Given tables:
+        employees(id, name, department_id, salary, hire_date)
+        departments(id, name)
+
+      Write a query to find the top 3 highest-paid employees in each department.
+      Return: department_name, employee_name, salary, rank_in_department
+    test_cases: []
+    rubric: |
+      - Uses window function ROW_NUMBER() or RANK() (4 pts)
+      - Correct PARTITION BY department (3 pts)
+      - Correct ORDER BY salary DESC (2 pts)
+      - Filters to top 3 using CTE or subquery (3 pts)
+      - Includes JOIN to departments (2 pts)
+    points: 14
+
+  - id: sql_002
+    type: coding
+    difficulty: easy
+    prompt: |
+      Given table: orders(id, customer_id, amount, order_date)
+
+      Write a query to find all customers who have placed more than 5 orders
+      AND whose total order amount exceeds $1000.
+      Return: customer_id, order_count, total_amount
+    test_cases: []
+    rubric: |
+      - Correct GROUP BY customer_id (3 pts)
+      - COUNT and SUM aggregations (3 pts)
+      - HAVING clause with both conditions (4 pts)
+    points: 10
+
+  - id: sql_003
+    type: coding
+    difficulty: hard
+    prompt: |
+      Given table: logins(user_id, login_date)
+
+      Write a query to find users who logged in for at least 3 consecutive days.
+      Return: user_id, streak_start, streak_end, streak_length
+      A classic gaps-and-islands problem.
+    test_cases: []
+    rubric: |
+      - Identifies gaps-and-islands approach (4 pts)
+      - Uses ROW_NUMBER or DATE arithmetic to create groups (5 pts)
+      - Correctly groups consecutive dates (4 pts)
+      - Filters for streak_length >= 3 (2 pts)
+    points: 15
+
+  - id: sql_004
+    type: multiple_choice
+    difficulty: medium
+    prompt: |
+      What is the difference between WHERE and HAVING in SQL?
+    options:
+      - "WHERE filters rows before GROUP BY; HAVING filters groups after GROUP BY"
+      - "WHERE is for SELECT; HAVING is for INSERT"
+      - "They are interchangeable"
+      - "WHERE works with indexes; HAVING does not"
+    correct_answer: "A"
+    points: 5
+
+  - id: sql_005
+    type: coding
+    difficulty: medium
+    prompt: |
+      Given tables:
+        products(id, name, price, category)
+        order_items(id, order_id, product_id, quantity)
+        orders(id, order_date)
+
+      Write a query to calculate the running total of revenue per category,
+      ordered by month. Use window functions.
+      Return: category, month, monthly_revenue, running_total
+    test_cases: []
+    rubric: |
+      - Correct JOINs across tables (3 pts)
+      - DATE_TRUNC or similar for monthly grouping (2 pts)
+      - SUM(price * quantity) for revenue (3 pts)
+      - SUM() OVER (PARTITION BY category ORDER BY month) for running total (5 pts)
+    points: 13

@@ -1,0 +1,74 @@
+id: agile_methodology
+name: "Agile Methodology"
+category: methodology
+skill_tags: ["agile", "scrum", "kanban", "project management"]
+time_limit_minutes: 15
+passing_score: 60
+questions:
+  - id: agile_001
+    type: multiple_choice
+    difficulty: easy
+    prompt: "What is the typical length of a Scrum sprint?"
+    options:
+      - "1 day"
+      - "1-4 weeks (commonly 2 weeks)"
+      - "3 months"
+      - "There is no fixed length"
+    correct_answer: "B"
+    points: 5
+
+  - id: agile_002
+    type: multiple_choice
+    difficulty: medium
+    prompt: "What is the primary difference between Scrum and Kanban?"
+    options:
+      - "Scrum uses time-boxed iterations; Kanban uses continuous flow with WIP limits"
+      - "Scrum is for software; Kanban is for manufacturing"
+      - "Scrum requires a Scrum Master; Kanban requires a Project Manager"
+      - "Scrum tracks velocity; Kanban does not track any metrics"
+    correct_answer: "A"
+    points: 10
+
+  - id: agile_003
+    type: short_answer
+    difficulty: medium
+    prompt: |
+      A sprint retrospective reveals the team consistently underestimates story points,
+      leading to incomplete sprints. They've tried planning poker but still miss targets.
+      What specific actions would you recommend to improve estimation accuracy?
+    rubric: |
+      - Break stories into smaller pieces (2 pts)
+      - Use historical velocity data (2 pts)
+      - Reference past stories of similar complexity (2 pts)
+      - Account for unknowns with spikes (2 pts)
+      - Reduce sprint scope rather than overtime (2 pts)
+    points: 10
+
+  - id: agile_004
+    type: multiple_choice
+    difficulty: medium
+    prompt: "Which Scrum ceremony is specifically designed for the team to inspect and adapt their process?"
+    options:
+      - "Sprint Planning"
+      - "Daily Standup"
+      - "Sprint Review"
+      - "Sprint Retrospective"
+    correct_answer: "D"
+    points: 5
+
+  - id: agile_005
+    type: short_answer
+    difficulty: hard
+    prompt: |
+      You're transitioning a 50-person engineering org from waterfall to agile.
+      Leadership is skeptical, and teams are resistant to change.
+      Outline your approach for the first 6 months. What do you do first?
+      How do you measure success? What are the biggest risks?
+    rubric: |
+      - Start with a pilot team (2 pts)
+      - Training and coaching plan (2 pts)
+      - Executive buy-in strategy (2 pts)
+      - Measurable success criteria (velocity, cycle time, satisfaction) (3 pts)
+      - Risk mitigation (resistance, half-adoption, tool overload) (3 pts)
+      - Phased rollout approach (2 pts)
+    points: 14

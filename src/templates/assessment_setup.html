@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Setup Assessment — {{ candidate.name }}{% endblock %}
+{% block content %}
+<a href="/candidates/{{ candidate.id }}" class="text-indigo-600 hover:underline text-sm">← Back to {{ candidate.name }}</a>
+<h1 class="text-2xl font-bold mt-2 mb-6">Setup Assessment for {{ candidate.name }}</h1>
+
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <h2 class="text-lg font-semibold mb-4">Recommended Tests</h2>
+    <p class="text-sm text-gray-600 mb-4">Based on MEDIUM and LOW confidence skills, these tests are recommended:</p>
+
+    {% if tests %}
+    <form id="sendForm" class="space-y-3">
+        {% for t in tests %}
+        <label class="flex items-start gap-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
+            <input type="checkbox" name="tests" value="{{ t.id }}" checked class="mt-1">
+            <div>
+                <span class="font-medium">{{ t.name }}</span>
+                <span class="text-xs text-gray-500 ml-2">{{ t.time_limit_minutes }} min · {{ t.questions|length }} questions</span>
+                <p class="text-sm text-gray-600">Tags: {{ t.skill_tags|join(', ') }}</p>
+            </div>
+        </label>
+        {% endfor %}
+
+        <button type="button" onclick="sendAssessment()" class="mt-4 bg-indigo-600 text-white py-2 px-6 rounded-lg hover:bg-indigo-700 font-medium">
+            Send Assessment
+        </button>
+    </form>
+    {% else %}
+    <p class="text-gray-500">No matching tests found. All skills are HIGH confidence or no tests match.</p>
+    {% endif %}
+</div>
+
+<script>
+async function sendAssessment() {
+    const checked = [...document.querySelectorAll('input[name=tests]:checked')].map(e => e.value);
+    if (!checked.length) { alert('Select at least one test'); return; }
+    const res = await fetch('/api/candidates/{{ candidate.id }}/send-assessment', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({test_ids: checked, base_url: window.location.origin})
+    });
+    const data = await res.json();
+    alert('Assessment sent! Link: ' + data.link);
+    window.location.href = '/candidates/{{ candidate.id }}';
+}
+</script>
+{% endblock %}

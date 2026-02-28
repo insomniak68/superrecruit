@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superrecruit
+  namespace: superrecruit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superrecruit
+  template:
+    metadata:
+      labels:
+        app: superrecruit
+    spec:
+      containers:
+        - name: superrecruit
+          image: superrecruit:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SR_DB_PATH
+              value: /data/superrecruit.db
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: superrecruit-data

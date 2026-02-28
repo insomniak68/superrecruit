@@ -1,0 +1,89 @@
+id: javascript_fundamentals
+name: "JavaScript Fundamentals"
+category: programming
+skill_tags: ["javascript", "js", "programming"]
+time_limit_minutes: 30
+passing_score: 60
+questions:
+  - id: js_001
+    type: coding
+    difficulty: medium
+    prompt: |
+      Write a function `debounce(fn, delayMs)` that returns a debounced version of fn.
+      The debounced function delays invoking fn until after delayMs milliseconds have elapsed
+      since the last time it was invoked. Use setTimeout/clearTimeout.
+    test_cases: []
+    rubric: |
+      - Returns a new function (2 pts)
+      - Uses setTimeout correctly (3 pts)
+      - Clears previous timeout on re-invocation (5 pts)
+      - Passes arguments through to fn (3 pts)
+      - Preserves `this` context (2 pts)
+    points: 15
+
+  - id: js_002
+    type: coding
+    difficulty: medium
+    prompt: |
+      Write an async function `fetchWithRetry(url, maxRetries = 3)` that:
+      1. Fetches the URL using fetch()
+      2. If the response is not ok (status >= 400), throws an error
+      3. On any error, retries up to maxRetries times with exponential backoff (1s, 2s, 4s)
+      4. Returns the parsed JSON response on success
+    test_cases: []
+    rubric: |
+      - Uses async/await correctly (3 pts)
+      - Implements retry loop (3 pts)
+      - Exponential backoff calculation (3 pts)
+      - Checks response.ok (2 pts)
+      - Returns parsed JSON (2 pts)
+      - Re-throws after max retries (2 pts)
+    points: 15
+
+  - id: js_003
+    type: coding
+    difficulty: easy
+    prompt: |
+      Write a function `deepClone(obj)` that creates a deep copy of a JavaScript object.
+      It should handle nested objects, arrays, null, and primitive values.
+      Do NOT use JSON.parse/JSON.stringify or structuredClone.
+    test_cases:
+      - input: [{"a": 1, "b": {"c": [1,2,3]}}]
+        expected: {"a": 1, "b": {"c": [1,2,3]}}
+    points: 15
+
+  - id: js_004
+    type: multiple_choice
+    difficulty: medium
+    prompt: |
+      What is the output of:
+      ```javascript
+      for (var i = 0; i < 3; i++) {
+        setTimeout(() => console.log(i), 0);
+      }
+      ```
+    options:
+      - "0, 1, 2"
+      - "3, 3, 3"
+      - "undefined, undefined, undefined"
+      - "0, 0, 0"
+    correct_answer: "B"
+    points: 5
+
+  - id: js_005
+    type: coding
+    difficulty: hard
+    prompt: |
+      Implement a simple `Promise.all` polyfill called `promiseAll(promises)`.
+      It should take an array of promises and return a promise that:
+      - Resolves with an array of results when ALL promises resolve (in order)
+      - Rejects with the first rejection reason if ANY promise rejects
+    test_cases: []
+    rubric: |
+      - Returns a new Promise (2 pts)
+      - Tracks completion count correctly (3 pts)
+      - Preserves order of results (3 pts)
+      - Handles empty array (2 pts)
+      - Rejects on first failure (3 pts)
+      - Handles non-promise values (2 pts)
+    points: 15

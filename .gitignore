@@ -1,0 +1,7 @@
+data/
+*.db
+config/config.yaml
+__pycache__/
+*.pyc
+.env
+uploads/

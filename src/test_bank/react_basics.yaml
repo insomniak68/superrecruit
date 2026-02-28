@@ -1,0 +1,93 @@
+id: react_basics
+name: "React Basics"
+category: framework
+skill_tags: ["react", "reactjs", "react.js"]
+time_limit_minutes: 25
+passing_score: 60
+questions:
+  - id: react_001
+    type: coding
+    difficulty: medium
+    prompt: |
+      Write a custom React hook `useLocalStorage(key, initialValue)` that:
+      1. Reads the initial value from localStorage (if it exists)
+      2. Returns [storedValue, setValue] similar to useState
+      3. Persists changes to localStorage whenever setValue is called
+      4. Handles JSON serialization/deserialization
+    test_cases: []
+    rubric: |
+      - Uses useState with lazy initializer (3 pts)
+      - Reads from localStorage on init (3 pts)
+      - Updates localStorage on value change (3 pts)
+      - Handles JSON parse/stringify (2 pts)
+      - Error handling for invalid JSON (2 pts)
+    points: 13
+
+  - id: react_002
+    type: multiple_choice
+    difficulty: easy
+    prompt: "What does the useEffect cleanup function do?"
+    options:
+      - "It runs when the component first mounts"
+      - "It runs before the effect re-runs and when the component unmounts"
+      - "It prevents memory leaks by clearing all state"
+      - "It cancels the current render cycle"
+    correct_answer: "B"
+    points: 5
+
+  - id: react_003
+    type: coding
+    difficulty: medium
+    prompt: |
+      Write a React component `<SearchableList items={[...]} />` that:
+      1. Renders a search input at the top
+      2. Filters the items array based on the search text (case-insensitive)
+      3. Renders matching items as a list
+      4. Debounces the search by 300ms (don't filter on every keystroke)
+      5. Shows "No results" when nothing matches
+
+      Items are strings. Use functional component with hooks.
+    test_cases: []
+    rubric: |
+      - Functional component with proper JSX (2 pts)
+      - useState for search term (2 pts)
+      - Debounce implementation (4 pts)
+      - Case-insensitive filtering (2 pts)
+      - Empty state handling (2 pts)
+      - useMemo or useCallback optimization (2 pts)
+    points: 14
+
+  - id: react_004
+    type: multiple_choice
+    difficulty: medium
+    prompt: |
+      Which of the following is TRUE about React's reconciliation algorithm?
+    options:
+      - "React compares the real DOM with the virtual DOM element by element"
+      - "React uses keys to identify which elements changed in lists, diffing by component type first"
+      - "React always re-renders all children when a parent re-renders"
+      - "React's diffing algorithm has O(n³) complexity"
+    correct_answer: "B"
+    points: 5
+
+  - id: react_005
+    type: coding
+    difficulty: hard
+    prompt: |
+      Implement a simple React context-based state management system.
+      Create:
+      1. A `createStore(initialState, reducers)` function
+      2. A `StoreProvider` component
+      3. A `useStore()` hook that returns [state, dispatch]
+
+      The dispatch function should accept action objects {type, payload}
+      and apply the matching reducer. Components using useStore should
+      re-render when state changes.
+    test_cases: []
+    rubric: |
+      - Creates React Context (2 pts)
+      - Provider component with useReducer (4 pts)
+      - Custom hook using useContext (3 pts)
+      - Reducer dispatching works correctly (4 pts)
+      - Type safety / error handling (2 pts)
+    points: 15

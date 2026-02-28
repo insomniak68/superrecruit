@@ -1,0 +1,165 @@
+id: data_structures_algorithms
+name: "Data Structures & Algorithms"
+category: programming
+skill_tags: ["algorithms", "data structures", "dsa", "computer science"]
+time_limit_minutes: 45
+passing_score: 60
+questions:
+  - id: dsa_001
+    type: multiple_choice
+    difficulty: easy
+    prompt: "What is the time complexity of searching for an element in a balanced binary search tree?"
+    options:
+      - "O(1)"
+      - "O(log n)"
+      - "O(n)"
+      - "O(n log n)"
+    correct_answer: "B"
+    points: 5
+
+  - id: dsa_002
+    type: multiple_choice
+    difficulty: medium
+    prompt: "Which sorting algorithm has the best average-case AND worst-case time complexity?"
+    options:
+      - "QuickSort — O(n log n) average, O(n²) worst"
+      - "MergeSort — O(n log n) average and worst"
+      - "BubbleSort — O(n²) average and worst"
+      - "HeapSort — O(n log n) average, O(n²) worst"
+    correct_answer: "B"
+    points: 5
+
+  - id: dsa_003
+    type: coding
+    difficulty: medium
+    prompt: |
+      Write a function `find_kth_largest(nums, k)` that finds the kth largest element
+      in an unsorted array. Do NOT sort the entire array — use a more efficient approach.
+
+      Example: find_kth_largest([3, 2, 1, 5, 6, 4], 2) → 5
+    test_cases:
+      - input: [[3, 2, 1, 5, 6, 4], 2]
+        expected: 5
+      - input: [[3, 2, 3, 1, 2, 4, 5, 5, 6], 4]
+        expected: 4
+      - input: [[1], 1]
+        expected: 1
+    points: 15
+
+  - id: dsa_004
+    type: coding
+    difficulty: hard
+    prompt: |
+      Implement a function `shortest_path(graph, start, end)` that finds the shortest path
+      in a weighted directed graph using Dijkstra's algorithm.
+
+      graph is an adjacency list: {node: [(neighbor, weight), ...]}
+      Return the shortest distance. Return -1 if no path exists.
+
+      Example:
+      graph = {"A": [("B", 1), ("C", 4)], "B": [("C", 2)], "C": []}
+      shortest_path(graph, "A", "C") → 3
+    test_cases:
+      - input: [{"A": [["B", 1], ["C", 4]], "B": [["C", 2]], "C": []}, "A", "C"]
+        expected: 3
+      - input: [{"A": [["B", 1]], "B": [], "C": []}, "A", "C"]
+        expected: -1
+    points: 20
+
+  - id: dsa_005
+    type: multiple_choice
+    difficulty: medium
+    prompt: "What data structure would you use to implement an LRU cache with O(1) get and put?"
+    options:
+      - "Array + Binary Search"
+      - "Hash Map + Doubly Linked List"
+      - "Binary Search Tree"
+      - "Stack + Queue"
+    correct_answer: "B"
+    points: 5
+
+  - id: dsa_006
+    type: coding
+    difficulty: medium
+    prompt: |
+      Write a function `max_subarray_sum(nums)` that finds the contiguous subarray
+      with the largest sum and returns that sum. Use Kadane's algorithm (O(n) time).
+
+      Example: max_subarray_sum([-2, 1, -3, 4, -1, 2, 1, -5, 4]) → 6
+      (subarray [4, -1, 2, 1])
+    test_cases:
+      - input: [[-2, 1, -3, 4, -1, 2, 1, -5, 4]]
+        expected: 6
+      - input: [[1]]
+        expected: 1
+      - input: [[-1, -2, -3]]
+        expected: -1
+    points: 10
+
+  - id: dsa_007
+    type: multiple_choice
+    difficulty: hard
+    prompt: "What is the amortized time complexity of inserting n elements into a dynamic array (like Python's list.append)?"
+    options:
+      - "O(n) per insertion"
+      - "O(1) amortized per insertion"
+      - "O(log n) per insertion"
+      - "O(n²) total"
+    correct_answer: "B"
+    points: 5
+
+  - id: dsa_008
+    type: coding
+    difficulty: hard
+    prompt: |
+      Write a function `num_islands(grid)` that counts the number of islands in a 2D grid.
+      Grid is a list of lists where '1' is land and '0' is water.
+      Islands are connected horizontally/vertically (not diagonally).
+
+      Example:
+      grid = [
+        ["1","1","0","0","0"],
+        ["1","1","0","0","0"],
+        ["0","0","1","0","0"],
+        ["0","0","0","1","1"]
+      ]
+      → 3
+    test_cases:
+      - input: [[["1","1","0","0","0"],["1","1","0","0","0"],["0","0","1","0","0"],["0","0","0","1","1"]]]
+        expected: 3
+      - input: [[["1","0"],["0","1"]]]
+        expected: 2
+      - input: [[["0","0"],["0","0"]]]
+        expected: 0
+    points: 15
+
+  - id: dsa_009
+    type: multiple_choice
+    difficulty: medium
+    prompt: "When would you use a Trie over a Hash Map for storing strings?"
+    options:
+      - "When you need O(1) exact lookups"
+      - "When you need prefix-based searching (autocomplete, spell check)"
+      - "When memory efficiency is the top priority"
+      - "When strings are all the same length"
+    correct_answer: "B"
+    points: 5
+
+  - id: dsa_010
+    type: coding
+    difficulty: medium
+    prompt: |
+      Write a function `is_valid_bst(root)` that checks whether a binary tree is a valid
+      binary search tree. A BST has the property that for every node:
+      - All values in its left subtree are strictly less than the node's value
+      - All values in its right subtree are strictly greater than the node's value
+
+      Node class: class TreeNode: val, left, right
+      Return True/False.
+    test_cases: []
+    rubric: |
+      - Recursive approach with min/max bounds (5 pts)
+      - Handles None/leaf nodes (2 pts)
+      - Uses strict inequality (not <=) (2 pts)
+      - Passes bounds through recursion correctly (3 pts)
+    points: 12

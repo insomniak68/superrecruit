@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skills Assessment — SuperRecruit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+    <style>
+        .CodeMirror { height: 200px; border: 1px solid #d1d5db; border-radius: 0.5rem; }
+        .tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-indigo-600 text-white px-6 py-3 flex justify-between items-center">
+        <span class="font-bold text-lg">⚡ SuperRecruit Assessment</span>
+        <span id="globalTimer" class="text-sm bg-indigo-700 px-3 py-1 rounded"></span>
+    </nav>
+
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Tabs -->
+        <div class="flex gap-1 border-b mb-6 overflow-x-auto" id="tabs"></div>
+
+        <!-- Test panels -->
+        <div id="panels"></div>
+
+        <div class="mt-6 text-center">
+            <button onclick="submitAll()" class="bg-indigo-600 text-white py-3 px-8 rounded-lg hover:bg-indigo-700 font-medium text-lg">
+                Submit All Answers
+            </button>
+        </div>
+    </div>
+
+    <script>
+    const tests = {{ tests_json | safe }};
+    const token = "{{ session.token }}";
+    const answers = {};
+    const editors = {};
+
+    // Build tabs + panels
+    const tabsEl = document.getElementById('tabs');
+    const panelsEl = document.getElementById('panels');
+
+    tests.forEach((test, ti) => {
+        answers[test.id] = {};
+        // Tab
+        const tab = document.createElement('button');
+        tab.className = 'px-4 py-2 text-sm whitespace-nowrap ' + (ti === 0 ? 'tab-active' : 'text-gray-500');
+        tab.textContent = test.name;
+        tab.onclick = () => switchTab(ti);
+        tab.id = 'tab-' + ti;
+        tabsEl.appendChild(tab);
+
+        // Panel
+        const panel = document.createElement('div');
+        panel.id = 'panel-' + ti;
+        panel.className = ti === 0 ? '' : 'hidden';
+        panel.innerHTML = `
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">${test.name}</h2>
+                <span class="text-sm text-gray-500">${test.time_limit_minutes} minutes · ${test.questions.length} questions</span>
+            </div>
+        `;
+
+        test.questions.forEach((q, qi) => {
+            const qDiv = document.createElement('div');
+            qDiv.className = 'bg-white rounded-lg shadow p-6 mb-4';
+            let inputHtml = '';
+
+            if (q.type === 'multiple_choice') {
+                inputHtml = q.options.map((opt, oi) =>
+                    `<label class="flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                        <input type="radio" name="${test.id}_${q.id}" value="${String.fromCharCode(65+oi)}"
+                            onchange="answers['${test.id}']['${q.id}'] = this.value">
+                        <span>${String.fromCharCode(65+oi)}. ${opt}</span>
+                    </label>`
+                ).join('');
+            } else if (q.type === 'coding') {
+                inputHtml = `<textarea id="code_${test.id}_${q.id}" class="code-editor"></textarea>`;
+            } else {
+                inputHtml = `<textarea rows="4" class="w-full border rounded-lg px-3 py-2"
+                    oninput="answers['${test.id}']['${q.id}'] = this.value"
+                    placeholder="Your answer..."></textarea>`;
+            }
+
+            const diffColor = {easy:'text-green-600', medium:'text-yellow-600', hard:'text-red-600'}[q.difficulty] || '';
+            qDiv.innerHTML = `
+                <div class="flex justify-between mb-2">
+                    <span class="font-medium">Q${qi+1}.</span>
+                    <div><span class="text-xs ${diffColor} uppercase">${q.difficulty}</span> · <span class="text-xs text-gray-500">${q.points} pts</span></div>
+                </div>
+                <p class="mb-3 whitespace-pre-wrap">${q.prompt}</p>
+                ${q.test_cases && q.test_cases.length ? '<div class="bg-gray-50 rounded p-3 mb-3 text-sm"><strong>Test Cases:</strong>' + q.test_cases.map(tc => `<div class="font-mono text-xs mt-1">Input: ${JSON.stringify(tc.input)} → Expected: ${JSON.stringify(tc.expected)}</div>`).join('') + '</div>' : ''}
+                <div>${inputHtml}</div>
+            `;
+            panel.appendChild(qDiv);
+        });
+        panelsEl.appendChild(panel);
+    });
+
+    // Init CodeMirror editors after DOM is ready
+    setTimeout(() => {
+        tests.forEach(test => {
+            test.questions.forEach(q => {
+                if (q.type === 'coding') {
+                    const el = document.getElementById('code_' + test.id + '_' + q.id);
+                    if (el) {
+                        const mode = test.id.includes('python') ? 'python' :
+                                     test.id.includes('sql') ? 'sql' : 'javascript';
+                        const cm = CodeMirror.fromTextArea(el, {
+                            mode: mode, lineNumbers: true, tabSize: 4, indentWithTabs: false
+                        });
+                        cm.on('change', () => { answers[test.id][q.id] = cm.getValue(); });
+                        editors[test.id + '_' + q.id] = cm;
+                    }
+                }
+            });
+        });
+    }, 100);
+
+    function switchTab(idx) {
+        tests.forEach((_, i) => {
+            document.getElementById('tab-' + i).className = 'px-4 py-2 text-sm whitespace-nowrap ' + (i === idx ? 'tab-active' : 'text-gray-500');
+            document.getElementById('panel-' + i).className = i === idx ? '' : 'hidden';
+        });
+        // Refresh CodeMirror on tab switch
+        Object.values(editors).forEach(cm => cm.refresh());
+    }
+
+    async function submitAll() {
+        if (!confirm('Submit all answers? This cannot be undone.')) return;
+        const res = await fetch('/assess/' + token + '/submit', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({answers})
+        });
+        if (res.ok) window.location.href = '/assess/' + token + '/results';
+        else alert('Error submitting. Please try again.');
+    }
+    </script>
+</body>
+</html>
