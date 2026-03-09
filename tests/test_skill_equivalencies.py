@@ -211,6 +211,82 @@ class TestMatchingLogic:
         assert azure_global["weight"] == 0.8
 
 
+class TestEmployerPrefs:
+    def test_employer_prefs_override_global(self):
+        """Employer prefs should take precedence over global groups."""
+        # Global: AWS ↔ Azure @ 0.8
+        create_equivalency_group(EquivalencyGroupCreate(
+            name="Cloud",
+            skills=[
+                EquivalencySkill(skill_name="AWS", weight=1.0),
+                EquivalencySkill(skill_name="Azure", weight=0.8),
+            ],
+        ))
+
+        # Employer prefs: AWS ↔ Azure @ 0.6
+        employer_prefs = [{
+            "name": "Strict Cloud",
+            "skills": [
+                {"skill_name": "aws", "weight": 1.0},
+                {"skill_name": "azure", "weight": 0.6},
+            ],
+        }]
+
+        # With employer prefs
+        equivs = find_equivalents("aws", employer_prefs=employer_prefs)
+        azure = next(e for e in equivs if e["skill_name"] == "azure")
+        assert azure["weight"] == 0.6
+
+        # Without (global)
+        equivs_global = find_equivalents("aws")
+        azure_global = next(e for e in equivs_global if e["skill_name"] == "azure")
+        assert azure_global["weight"] == 0.8
+
+    def test_position_overrides_beat_employer_prefs(self):
+        """Position overrides should take precedence over employer prefs."""
+        from src.database import get_db
+
+        # Global: AWS ↔ Azure @ 0.8
+        create_equivalency_group(EquivalencyGroupCreate(
+            name="Cloud",
+            skills=[
+                EquivalencySkill(skill_name="AWS", weight=1.0),
+                EquivalencySkill(skill_name="Azure", weight=0.8),
+            ],
+        ))
+
+        # Position override: Azure @ 0.3
+        conn = get_db()
+        overrides = json.dumps([{
+            "name": "Cloud Override",
+            "skills": [
+                {"skill_name": "aws", "weight": 1.0},
+                {"skill_name": "azure", "weight": 0.3},
+            ],
+        }])
+        cur = conn.execute(
+            "INSERT INTO position_profiles (title, equivalency_overrides) VALUES (?, ?)",
+            ("Test", overrides),
+        )
+        pos_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+
+        # Employer prefs: Azure @ 0.6
+        employer_prefs = [{
+            "name": "Employer Cloud",
+            "skills": [
+                {"skill_name": "aws", "weight": 1.0},
+                {"skill_name": "azure", "weight": 0.6},
+            ],
+        }]
+
+        # Position override wins
+        equivs = find_equivalents("aws", position_id=pos_id, employer_prefs=employer_prefs)
+        azure = next(e for e in equivs if e["skill_name"] == "azure")
+        assert azure["weight"] == 0.3
+
+
 class TestWeightClamping:
     def test_weight_clamped_to_0_1(self):
         s = EquivalencySkill(skill_name="test", weight=1.5)

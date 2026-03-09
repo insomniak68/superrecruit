@@ -13,6 +13,7 @@ from .knowledge_base import (
     get_role_archetype,
     get_skill_relations,
     get_skill_by_canonical,
+    list_employer_interpretations,
 )
 from .llm_config import get_client
 from .skill_equivalencies import find_equivalents, adjusted_skill_score
@@ -67,6 +68,7 @@ def _find_skill_match(
     skill_canonical: str,
     candidate_skills_map: dict[str, float],
     position_id: int = None,
+    employer_prefs: dict = None,
 ) -> tuple[Optional[float], Optional[str]]:
     """Find a candidate skill matching the required skill, considering equivalencies.
 
@@ -77,14 +79,14 @@ def _find_skill_match(
         return candidate_skills_map[skill_canonical], None
 
     # Check configurable skill equivalencies first (explicit weights, takes precedence)
-    eq_skills = find_equivalents(skill_canonical, position_id=position_id)
+    eq_skills = find_equivalents(skill_canonical, position_id=position_id, employer_prefs=employer_prefs)
     best_score = None
     best_explanation = None
     for eq in eq_skills:
         eq_name = eq["skill_name"]
         if eq_name in candidate_skills_map:
             base = candidate_skills_map[eq_name]
-            adj, explanation = adjusted_skill_score(eq_name, skill_canonical, base, position_id)
+            adj, explanation = adjusted_skill_score(eq_name, skill_canonical, base, position_id, employer_prefs=employer_prefs)
             if best_score is None or adj > best_score:
                 best_score = adj
                 best_explanation = explanation
@@ -109,11 +111,20 @@ def _find_skill_match(
     return None, None
 
 
-def _assess_with_role(skills: list[dict], role_archetype_id: int, position_id: int = None) -> FitResult:
+def _assess_with_role(skills: list[dict], role_archetype_id: int, position_id: int = None, employer_name: str = None) -> FitResult:
     """Assess fit against a specific role archetype."""
     role = get_role_archetype(role_archetype_id)
     if not role:
         return _assess_general(skills)
+
+    # Look up employer-specific equivalency prefs if employer_name provided
+    employer_prefs = None
+    if employer_name:
+        eis = list_employer_interpretations(role_archetype_id)
+        for ei in eis:
+            if ei.employer_name.lower() == employer_name.lower() and ei.equivalency_prefs:
+                employer_prefs = ei.equivalency_prefs
+                break
 
     # Build candidate skill map: canonical_name -> confidence
     candidate_map: dict[str, float] = {}
@@ -133,7 +144,7 @@ def _assess_with_role(skills: list[dict], role_archetype_id: int, position_id: i
         weight = rs.weight or 1.0
         total_weight += weight
 
-        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map, position_id=position_id)
+        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map, position_id=position_id, employer_prefs=employer_prefs)
         if match_conf is not None:
             # Penalize if below min_confidence
             if rs.min_confidence and match_conf < rs.min_confidence:
@@ -156,7 +167,7 @@ def _assess_with_role(skills: list[dict], role_archetype_id: int, position_id: i
         weight = rs.weight or 0.5
         total_weight += weight
 
-        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map, position_id=position_id)
+        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map, position_id=position_id, employer_prefs=employer_prefs)
         if match_conf is not None:
             skill_score = match_conf
         else:
@@ -323,6 +334,7 @@ def assess_fit(
     role_archetype_id: int = None,
     position_profile: dict = None,
     position_id: int = None,
+    employer_name: str = None,
 ) -> FitResult:
     """Main entry point for fit assessment.
 
@@ -335,7 +347,7 @@ def assess_fit(
         FitResult with score, level, rationale, and breakdown
     """
     if role_archetype_id:
-        return _assess_with_role(skills, role_archetype_id, position_id=position_id)
+        return _assess_with_role(skills, role_archetype_id, position_id=position_id, employer_name=employer_name)
     elif position_profile:
         return _assess_with_profile(skills, position_profile)
     else:

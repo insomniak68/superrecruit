@@ -337,17 +337,17 @@ def seed_equivalency_groups() -> list[EquivalencyGroupResponse]:
 
 # ── Matching Logic ──
 
-def find_equivalents(skill_name: str, position_id: int = None) -> list[dict]:
+def find_equivalents(skill_name: str, position_id: int = None, employer_prefs: dict = None) -> list[dict]:
     """Find equivalent skills + weights for a given skill.
 
     Returns list of {"skill_name": str, "weight": float} for all skills
     in the same equivalency group(s), excluding the input skill itself.
 
-    Position-level overrides take precedence if position_id is provided.
+    Precedence: position-level overrides > employer prefs > global groups.
     """
     skill_lower = skill_name.lower().strip()
 
-    # Check position-level overrides first
+    # Check position-level overrides first (highest precedence)
     if position_id is not None:
         conn = get_db()
         row = conn.execute(
@@ -368,6 +368,18 @@ def find_equivalents(skill_name: str, position_id: int = None) -> list[dict]:
                         ]
             except (json.JSONDecodeError, TypeError):
                 pass
+
+    # Check employer-level prefs (middle precedence)
+    if employer_prefs:
+        groups = employer_prefs if isinstance(employer_prefs, list) else employer_prefs.get("groups", [])
+        for group in groups:
+            group_skills = {s["skill_name"].lower().strip(): s["weight"] for s in group.get("skills", [])}
+            if skill_lower in group_skills:
+                return [
+                    {"skill_name": s_name, "weight": s_weight}
+                    for s_name, s_weight in group_skills.items()
+                    if s_name != skill_lower
+                ]
 
     # Global equivalencies
     conn = get_db()
@@ -401,6 +413,7 @@ def adjusted_skill_score(
     required_skill: str,
     base_score: float = 1.0,
     position_id: int = None,
+    employer_prefs: dict = None,
 ) -> tuple[float, str]:
     """Return (adjusted_score, explanation) factoring in equivalency weight.
 
@@ -410,7 +423,7 @@ def adjusted_skill_score(
     if candidate_skill.lower().strip() == required_skill.lower().strip():
         return base_score, "exact match"
 
-    equivalents = find_equivalents(required_skill, position_id=position_id)
+    equivalents = find_equivalents(required_skill, position_id=position_id, employer_prefs=employer_prefs)
     candidate_lower = candidate_skill.lower().strip()
 
     for eq in equivalents:
