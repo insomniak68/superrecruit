@@ -199,6 +199,7 @@ async def upload_resume(file: UploadFile = File(...), name: str = Form(...), ema
         if active_pos:
             position_profile = {
                 "name": active_pos.title,
+                "position_id": active_pos.id,
                 "core_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.required_skills],
                 "adjacent_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.preferred_skills],
             }
@@ -954,6 +955,7 @@ def _process_submission(submission_id: str, integration: dict, body: SubmissionC
             if active_pos:
                 position_profile = {
                     "name": active_pos.title,
+                    "position_id": active_pos.id,
                     "core_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.required_skills],
                     "adjacent_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.preferred_skills],
                 }

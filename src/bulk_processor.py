@@ -151,10 +151,20 @@ def process_single_resume(pdf_path: str) -> CandidateResult:
         # Fit assessment
         try:
             from .fit_assessor import assess_fit
+            from .position_profiles import get_active_position
             skill_dicts = [{"skill_name": s.skill_name, "category": s.category,
                              "llm_confidence": s.llm_confidence,
                              "final_confidence": s.final_confidence} for s in skills]
-            fit = assess_fit(skill_dicts)
+            active_pos = get_active_position()
+            position_profile = None
+            if active_pos:
+                position_profile = {
+                    "name": active_pos.title,
+                    "position_id": active_pos.id,
+                    "core_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.required_skills],
+                    "adjacent_skills": [{"name": s.skill_name, "weight": s.weight} for s in active_pos.preferred_skills],
+                }
+            fit = assess_fit(skill_dicts, position_profile=position_profile)
             result.fit_score = fit.fit_score
             result.fit_level = fit.fit_level
         except Exception as e:

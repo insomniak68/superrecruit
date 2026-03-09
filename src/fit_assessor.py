@@ -97,7 +97,7 @@ def _find_skill_match(
     return None, None
 
 
-def _assess_with_role(skills: list[dict], role_archetype_id: int) -> FitResult:
+def _assess_with_role(skills: list[dict], role_archetype_id: int, position_id: int = None) -> FitResult:
     """Assess fit against a specific role archetype."""
     role = get_role_archetype(role_archetype_id)
     if not role:
@@ -121,7 +121,7 @@ def _assess_with_role(skills: list[dict], role_archetype_id: int) -> FitResult:
         weight = rs.weight or 1.0
         total_weight += weight
 
-        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map)
+        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map, position_id=position_id)
         if match_conf is not None:
             # Penalize if below min_confidence
             if rs.min_confidence and match_conf < rs.min_confidence:
@@ -144,7 +144,7 @@ def _assess_with_role(skills: list[dict], role_archetype_id: int) -> FitResult:
         weight = rs.weight or 0.5
         total_weight += weight
 
-        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map)
+        match_conf, eq_explanation = _find_skill_match(skill_name, candidate_map, position_id=position_id)
         if match_conf is not None:
             skill_score = match_conf
         else:
@@ -310,6 +310,7 @@ def assess_fit(
     skills: list[dict],
     role_archetype_id: int = None,
     position_profile: dict = None,
+    position_id: int = None,
 ) -> FitResult:
     """Main entry point for fit assessment.
 
@@ -322,7 +323,7 @@ def assess_fit(
         FitResult with score, level, rationale, and breakdown
     """
     if role_archetype_id:
-        return _assess_with_role(skills, role_archetype_id)
+        return _assess_with_role(skills, role_archetype_id, position_id=position_id)
     elif position_profile:
         return _assess_with_profile(skills, position_profile)
     else:

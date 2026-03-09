@@ -122,6 +122,73 @@ def test_position_profile_assessment(mock_rat):
     assert result.breakdown["role"] == "Data Engineer"
 
 
+# ── Position-level equivalency overrides flow through scoring ──
+
+@patch("src.fit_assessor._generate_rationale", return_value="Equivalent match.")
+def test_position_overrides_affect_scoring(mock_rat):
+    """Position-level equivalency overrides should change scores vs. global defaults."""
+    import tempfile, importlib
+    tmp = tempfile.mktemp(suffix=".db")
+    os.environ["SR_DB_PATH"] = tmp
+    import src.database
+    importlib.reload(src.database)
+    from src.database import init_db, get_db
+    init_db()
+
+    from src.models import EquivalencyGroupCreate, EquivalencySkill
+    from src.skill_equivalencies import create_equivalency_group
+
+    # Global: AWS ↔ Azure @ 0.8
+    create_equivalency_group(EquivalencyGroupCreate(
+        name="Cloud",
+        skills=[
+            EquivalencySkill(skill_name="AWS", weight=1.0),
+            EquivalencySkill(skill_name="Azure", weight=0.8),
+        ],
+    ))
+
+    # Create position with override: AWS ↔ Azure @ 0.3
+    conn = get_db()
+    overrides = json.dumps([{
+        "name": "Cloud Override",
+        "skills": [
+            {"skill_name": "aws", "weight": 1.0},
+            {"skill_name": "azure", "weight": 0.3},
+        ],
+    }])
+    cur = conn.execute(
+        "INSERT INTO position_profiles (title, equivalency_overrides) VALUES (?, ?)",
+        ("Strict AWS Role", overrides),
+    )
+    pos_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+
+    candidate_skills = [
+        {"skill_name": "Azure", "category": "cloud", "final_confidence": 0.9},
+    ]
+
+    # Without position override (global: 0.8 weight)
+    profile_global = {
+        "name": "Cloud Role",
+        "core_skills": [{"name": "AWS", "weight": 1.0}],
+        "adjacent_skills": [],
+    }
+    result_global = assess_fit(candidate_skills, position_profile=profile_global)
+
+    # With position override (0.3 weight)
+    profile_override = {
+        "name": "Strict AWS Role",
+        "position_id": pos_id,
+        "core_skills": [{"name": "AWS", "weight": 1.0}],
+        "adjacent_skills": [],
+    }
+    result_override = assess_fit(candidate_skills, position_profile=profile_override)
+
+    # Override should produce a lower score
+    assert result_override.fit_score < result_global.fit_score
+
+
 # ── FitResult serialization ──
 
 def test_fit_result_to_dict():
