@@ -75,12 +75,8 @@ def _find_skill_match(
     # Direct match
     if skill_canonical in candidate_skills_map:
         return candidate_skills_map[skill_canonical], None
-    # Check KB equivalencies (legacy)
-    equivalents = _get_equivalent_names(skill_canonical)
-    for eq in equivalents:
-        if eq in candidate_skills_map:
-            return candidate_skills_map[eq], None
-    # Check configurable skill equivalencies
+
+    # Check configurable skill equivalencies first (explicit weights, takes precedence)
     eq_skills = find_equivalents(skill_canonical, position_id=position_id)
     best_score = None
     best_explanation = None
@@ -94,6 +90,22 @@ def _find_skill_match(
                 best_explanation = explanation
     if best_score is not None:
         return best_score, best_explanation
+
+    # Fall back to KB equivalencies (default weight 0.85, with explanation)
+    KB_EQUIV_WEIGHT = 0.85
+    equivalents = _get_equivalent_names(skill_canonical)
+    for eq in equivalents:
+        if eq in candidate_skills_map:
+            base = candidate_skills_map[eq]
+            adj = round(base * KB_EQUIV_WEIGHT, 3)
+            pct = int(KB_EQUIV_WEIGHT * 100)
+            explanation = f"{skill_canonical} required → has {eq} (KB equivalent, {pct}% weight) → adjusted score: {adj}"
+            if best_score is None or adj > best_score:
+                best_score = adj
+                best_explanation = explanation
+    if best_score is not None:
+        return best_score, best_explanation
+
     return None, None
 
 
