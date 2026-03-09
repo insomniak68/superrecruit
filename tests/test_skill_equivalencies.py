@@ -287,6 +287,61 @@ class TestEmployerPrefs:
         assert azure["weight"] == 0.3
 
 
+class TestCooccurrences:
+    def test_record_and_suggest(self):
+        from src.skill_equivalencies import record_cooccurrences, suggest_equivalency_groups
+        # Simulate 5 resumes with overlapping skills
+        for _ in range(5):
+            record_cooccurrences(["terraform", "ansible", "puppet"])
+        for _ in range(5):
+            record_cooccurrences(["terraform", "ansible", "chef"])
+
+        suggestions = suggest_equivalency_groups(min_cooccurrences=3, min_skills=2)
+        # Should suggest a group containing at least terraform + ansible
+        skill_sets = [set(s["skills"]) for s in suggestions]
+        assert any({"terraform", "ansible"}.issubset(s) for s in skill_sets)
+
+    def test_empty_cooccurrences(self):
+        from src.skill_equivalencies import suggest_equivalency_groups
+        suggestions = suggest_equivalency_groups(min_cooccurrences=100)
+        assert suggestions == []
+
+
+class TestEquivalencyFeedback:
+    def test_record_and_suggest_weights(self):
+        from src.skill_equivalencies import record_equivalency_feedback, get_weight_suggestions
+        # Record feedback: screeners consistently score azure lower than the 0.8 weight suggests
+        for _ in range(5):
+            record_equivalency_feedback(
+                required_skill="aws",
+                candidate_skill="azure",
+                original_weight=0.8,
+                screener_action="override",
+                adjusted_score=0.5,
+            )
+        suggestions = get_weight_suggestions(min_feedback=3)
+        assert len(suggestions) >= 1
+        s = suggestions[0]
+        assert s["required_skill"] == "aws"
+        assert s["candidate_skill"] == "azure"
+        assert s["suggested_weight"] < 0.8  # Should suggest lowering
+
+    def test_no_suggestion_when_weight_unchanged(self):
+        from src.skill_equivalencies import record_equivalency_feedback, get_weight_suggestions
+        for _ in range(5):
+            record_equivalency_feedback(
+                required_skill="react",
+                candidate_skill="vue",
+                original_weight=0.85,
+                screener_action="confirm",
+                adjusted_score=0.85,  # Same as original → weight ratio ≈ 1.0
+            )
+        suggestions = get_weight_suggestions(min_feedback=3)
+        # Should NOT suggest changes since screeners confirmed the weight
+        react_vue = [s for s in suggestions if s["required_skill"] == "react" and s["candidate_skill"] == "vue"]
+        assert len(react_vue) == 0
+
+
 class TestWeightClamping:
     def test_weight_clamped_to_0_1(self):
         s = EquivalencySkill(skill_name="test", weight=1.5)

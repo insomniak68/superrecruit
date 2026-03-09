@@ -337,6 +337,152 @@ def seed_equivalency_groups() -> list[EquivalencyGroupResponse]:
 
 # ── Matching Logic ──
 
+def record_cooccurrences(skill_names: list[str]) -> None:
+    """Record pairwise skill co-occurrences from a single resume."""
+    if len(skill_names) < 2:
+        return
+    names = sorted(set(s.lower().strip() for s in skill_names if s))
+    if len(names) < 2:
+        return
+    conn = get_db()
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            conn.execute(
+                """INSERT INTO skill_cooccurrences (skill_a, skill_b, count)
+                   VALUES (?, ?, 1)
+                   ON CONFLICT(skill_a, skill_b) DO UPDATE SET count = count + 1""",
+                (names[i], names[j]),
+            )
+    conn.commit()
+    conn.close()
+
+
+def suggest_equivalency_groups(min_cooccurrences: int = 5, min_skills: int = 3) -> list[dict]:
+    """Suggest potential equivalency groups based on skill co-occurrence patterns.
+
+    Returns groups of skills that frequently appear together on resumes
+    but aren't already in an equivalency group.
+    """
+    conn = get_db()
+
+    # Get existing equivalency skill names
+    existing = set()
+    rows = conn.execute("SELECT LOWER(skill_name) as sn FROM skill_equivalencies").fetchall()
+    for r in rows:
+        existing.add(r["sn"])
+
+    # Get frequent co-occurrences not already in groups
+    pairs = conn.execute(
+        "SELECT skill_a, skill_b, count FROM skill_cooccurrences WHERE count >= ? ORDER BY count DESC",
+        (min_cooccurrences,),
+    ).fetchall()
+    conn.close()
+
+    # Build clusters from co-occurring pairs
+    # Simple approach: group skills that share frequent co-occurrences
+    from collections import defaultdict
+    adjacency = defaultdict(set)
+    pair_counts = {}
+    for p in pairs:
+        a, b = p["skill_a"], p["skill_b"]
+        # Skip if both already in equivalency groups
+        if a in existing and b in existing:
+            continue
+        adjacency[a].add(b)
+        adjacency[b].add(a)
+        pair_counts[(a, b)] = p["count"]
+
+    # Find connected components (simple BFS)
+    visited = set()
+    suggestions = []
+    for skill in adjacency:
+        if skill in visited:
+            continue
+        cluster = set()
+        queue = [skill]
+        while queue:
+            s = queue.pop(0)
+            if s in visited:
+                continue
+            visited.add(s)
+            cluster.add(s)
+            for neighbor in adjacency[s]:
+                if neighbor not in visited:
+                    queue.append(neighbor)
+        if len(cluster) >= min_skills:
+            # Calculate average co-occurrence for the cluster
+            total_cooc = sum(
+                pair_counts.get(tuple(sorted([a, b])), 0)
+                for a in cluster for b in cluster if a < b
+            )
+            num_pairs = len(cluster) * (len(cluster) - 1) / 2
+            avg_cooc = total_cooc / num_pairs if num_pairs > 0 else 0
+            suggestions.append({
+                "skills": sorted(cluster),
+                "avg_cooccurrences": round(avg_cooc, 1),
+                "size": len(cluster),
+            })
+
+    suggestions.sort(key=lambda x: x["avg_cooccurrences"], reverse=True)
+    return suggestions
+
+
+def record_equivalency_feedback(
+    required_skill: str,
+    candidate_skill: str,
+    original_weight: float,
+    screener_action: str,
+    group_id: int = None,
+    adjusted_score: float = None,
+    context: dict = None,
+) -> None:
+    """Record screener feedback on an equivalency match."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO equivalency_feedback
+           (group_id, required_skill, candidate_skill, original_weight, adjusted_score, screener_action, context)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (group_id, required_skill.lower().strip(), candidate_skill.lower().strip(),
+         original_weight, adjusted_score, screener_action, json.dumps(context or {})),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_weight_suggestions(min_feedback: int = 3) -> list[dict]:
+    """Analyze equivalency feedback to suggest weight adjustments.
+
+    Returns suggestions where screeners consistently override equivalency scores.
+    """
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT required_skill, candidate_skill, original_weight,
+                  AVG(adjusted_score) as avg_adjusted, COUNT(*) as feedback_count,
+                  group_id
+           FROM equivalency_feedback
+           WHERE adjusted_score IS NOT NULL
+           GROUP BY required_skill, candidate_skill
+           HAVING COUNT(*) >= ?
+           ORDER BY feedback_count DESC""",
+        (min_feedback,),
+    ).fetchall()
+    conn.close()
+
+    suggestions = []
+    for r in rows:
+        suggested_weight = round(r["avg_adjusted"] / r["original_weight"], 3) if r["original_weight"] > 0 else None
+        if suggested_weight and abs(suggested_weight - 1.0) > 0.05:  # Only suggest if meaningful change
+            suggestions.append({
+                "required_skill": r["required_skill"],
+                "candidate_skill": r["candidate_skill"],
+                "current_weight": r["original_weight"],
+                "suggested_weight": min(suggested_weight, 1.0),
+                "feedback_count": r["feedback_count"],
+                "group_id": r["group_id"],
+            })
+    return suggestions
+
+
 def find_equivalents(skill_name: str, position_id: int = None, employer_prefs: dict = None) -> list[dict]:
     """Find equivalent skills + weights for a given skill.
 

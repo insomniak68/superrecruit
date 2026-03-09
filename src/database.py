@@ -187,6 +187,25 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (group_id) REFERENCES skill_equivalency_groups(id) ON DELETE CASCADE
     );
+    CREATE TABLE IF NOT EXISTS equivalency_feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_id INTEGER,
+        required_skill TEXT NOT NULL,
+        candidate_skill TEXT NOT NULL,
+        original_weight REAL NOT NULL,
+        adjusted_score REAL,
+        screener_action TEXT NOT NULL,
+        context TEXT DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (group_id) REFERENCES skill_equivalency_groups(id)
+    );
+    CREATE TABLE IF NOT EXISTS skill_cooccurrences (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        skill_a TEXT NOT NULL,
+        skill_b TEXT NOT NULL,
+        count INTEGER DEFAULT 1,
+        UNIQUE(skill_a, skill_b)
+    );
     CREATE TABLE IF NOT EXISTS skill_overrides (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         candidate_id INTEGER NOT NULL,

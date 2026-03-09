@@ -30,6 +30,8 @@ from .position_profiles import (
 from .skill_equivalencies import (
     create_equivalency_group, get_equivalency_group, list_equivalency_groups,
     update_equivalency_group, delete_equivalency_group, seed_equivalency_groups,
+    record_cooccurrences, suggest_equivalency_groups, get_weight_suggestions,
+    record_equivalency_feedback,
 )
 from .models import (
     PositionProfileCreate, PositionProfileUpdate, JobPostingInput,
@@ -187,6 +189,12 @@ async def upload_resume(file: UploadFile = File(...), name: str = Form(...), ema
             (cid, s.skill_name, s.category, s.evidence, s.llm_confidence.value, (s.final_confidence or s.llm_confidence).value, s.reasoning)
         )
     conn.commit()
+
+    # Track skill co-occurrences for equivalency suggestions
+    try:
+        record_cooccurrences([s.skill_name for s in skills])
+    except Exception:
+        pass  # Non-fatal
 
     # Run fit assessment
     skill_dicts = [{"skill_name": s.skill_name, "category": s.category,
@@ -689,6 +697,34 @@ async def api_delete_equivalency(gid: int):
 async def api_seed_equivalencies():
     created = seed_equivalency_groups()
     return {"seeded": len(created), "groups": [g.model_dump() for g in created]}
+
+
+@app.get("/api/equivalencies/suggestions")
+async def api_equivalency_suggestions(min_cooccurrences: int = 5, min_skills: int = 3):
+    """Suggest new equivalency groups based on skill co-occurrence patterns."""
+    return suggest_equivalency_groups(min_cooccurrences=min_cooccurrences, min_skills=min_skills)
+
+
+@app.get("/api/equivalencies/weight-suggestions")
+async def api_weight_suggestions(min_feedback: int = 3):
+    """Suggest weight adjustments based on screener feedback."""
+    return get_weight_suggestions(min_feedback=min_feedback)
+
+
+@app.post("/api/equivalencies/feedback")
+async def api_record_feedback(request: Request):
+    """Record screener feedback on an equivalency match."""
+    body = await request.json()
+    record_equivalency_feedback(
+        required_skill=body["required_skill"],
+        candidate_skill=body["candidate_skill"],
+        original_weight=body["original_weight"],
+        screener_action=body.get("screener_action", "override"),
+        group_id=body.get("group_id"),
+        adjusted_score=body.get("adjusted_score"),
+        context=body.get("context"),
+    )
+    return {"ok": True}
 
 
 # ── Knowledge Base Routes ──
