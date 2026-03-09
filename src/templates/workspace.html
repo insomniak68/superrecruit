@@ -65,6 +65,31 @@
                 <button onclick="showFitOverride()" class="text-xs text-indigo-600 hover:underline">Override</button>
             </div>
             <p class="text-xs text-gray-600" id="fit-rationale">{{ fit.rationale }}</p>
+            {% if fit_breakdown %}
+            <div class="mt-2" id="fit-breakdown">
+                {% set eq_matches = [] %}
+                {% for s in (fit_breakdown.get('core_skills', []) + fit_breakdown.get('adjacent_skills', [])) %}
+                    {% if s.get('equivalency') %}
+                        {% if eq_matches.append(s) %}{% endif %}
+                    {% endif %}
+                {% endfor %}
+                {% if eq_matches %}
+                <details class="text-xs">
+                    <summary class="text-indigo-600 cursor-pointer hover:underline">{{ eq_matches|length }} equivalency match{{ 'es' if eq_matches|length != 1 }}</summary>
+                    <div class="mt-1 space-y-1 pl-2 border-l-2 border-indigo-200">
+                        {% for s in eq_matches %}
+                        <div class="flex items-center gap-2">
+                            <span class="font-medium">{{ s.skill }}</span>
+                            <span class="text-gray-400">→</span>
+                            <span class="text-gray-600">{{ s.equivalency }}</span>
+                            <span class="font-mono {{ 'text-green-600' if s.score >= 0.7 else ('text-yellow-600' if s.score >= 0.4 else 'text-red-600') }}">{{ (s.score * 100)|int }}%</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+            {% endif %}
             {% else %}
             <p class="text-xs text-gray-400">No fit assessment yet.</p>
             {% endif %}

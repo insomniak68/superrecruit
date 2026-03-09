@@ -416,12 +416,20 @@ async def workspace(request: Request, cid: int):
         "SELECT * FROM fit_assessments WHERE candidate_id=? ORDER BY created_at DESC LIMIT 1", (cid,)
     ).fetchone()
     conn.close()
+    fit = dict(fit_row) if fit_row else None
+    fit_breakdown = None
+    if fit and fit.get("breakdown_json"):
+        try:
+            fit_breakdown = json.loads(fit["breakdown_json"])
+        except (json.JSONDecodeError, TypeError):
+            pass
     return templates.TemplateResponse("workspace.html", {
         "request": request,
         "candidate": dict(candidate),
         "skills": [dict(s) for s in skills],
         "history": [dict(h) for h in history],
-        "fit": dict(fit_row) if fit_row else None,
+        "fit": fit,
+        "fit_breakdown": fit_breakdown,
     })
 
 
