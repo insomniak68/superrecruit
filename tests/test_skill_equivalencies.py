@@ -116,7 +116,7 @@ class TestCRUD:
 class TestSeed:
     def test_seed_creates_groups(self):
         created = seed_equivalency_groups()
-        assert len(created) >= 4  # cloud, frontend, backend, databases at minimum
+        assert len(created) >= 18  # 6 original + 12 new domain groups
         # Idempotent
         created2 = seed_equivalency_groups()
         assert len(created2) == 0
