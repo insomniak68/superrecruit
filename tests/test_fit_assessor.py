@@ -129,6 +129,7 @@ def test_position_overrides_affect_scoring(mock_rat):
     """Position-level equivalency overrides should change scores vs. global defaults."""
     import tempfile, importlib
     tmp = tempfile.mktemp(suffix=".db")
+    old_db_path = os.environ.get("SR_DB_PATH")
     os.environ["SR_DB_PATH"] = tmp
     import src.database
     importlib.reload(src.database)
@@ -188,6 +189,17 @@ def test_position_overrides_affect_scoring(mock_rat):
     # Override should produce a lower score
     assert result_override.fit_score < result_global.fit_score
 
+    # Cleanup: restore DB path so subsequent tests aren't affected
+    if old_db_path is not None:
+        os.environ["SR_DB_PATH"] = old_db_path
+    else:
+        os.environ.pop("SR_DB_PATH", None)
+    importlib.reload(src.database)
+    try:
+        os.unlink(tmp)
+    except OSError:
+        pass
+
 
 # ── FitResult serialization ──
 
@@ -228,7 +240,11 @@ def test_rationale_fallback_on_error(mock_get_client):
 
 def test_fit_override_db(tmp_path):
     """Test that fit overrides are stored in the database."""
+    import importlib
+    old_db_path = os.environ.get("SR_DB_PATH")
     os.environ["SR_DB_PATH"] = str(tmp_path / "test.db")
+    import src.database
+    importlib.reload(src.database)
     from src.database import init_db, get_db
     init_db()
 
@@ -246,8 +262,12 @@ def test_fit_override_db(tmp_path):
     assert row["assessed_by"] == "human"
     assert row["rationale"] == "Override rationale"
 
-    # Cleanup
-    del os.environ["SR_DB_PATH"]
+    # Cleanup — restore DB path
+    if old_db_path is not None:
+        os.environ["SR_DB_PATH"] = old_db_path
+    else:
+        os.environ.pop("SR_DB_PATH", None)
+    importlib.reload(src.database)
 
 
 # ── Bulk output inclusion ──

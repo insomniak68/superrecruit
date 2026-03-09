@@ -30,6 +30,7 @@ def setup_db():
     """Re-init DB for each test."""
     # Override DB_PATH to use temp file for isolation
     import tempfile
+    old_db_path = os.environ.get("SR_DB_PATH")
     tmp = tempfile.mktemp(suffix=".db")
     os.environ["SR_DB_PATH"] = tmp
     # Reload module to pick up new path
@@ -39,6 +40,12 @@ def setup_db():
     from src.database import init_db
     init_db()
     yield
+    # Restore DB path
+    if old_db_path is not None:
+        os.environ["SR_DB_PATH"] = old_db_path
+    else:
+        os.environ.pop("SR_DB_PATH", None)
+    importlib.reload(src.database)
     try:
         os.unlink(tmp)
     except OSError:

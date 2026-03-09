@@ -20,6 +20,7 @@ from src.position_profiles import (
 
 @pytest.fixture(autouse=True)
 def fresh_db(tmp_path):
+    old_db_path = os.environ.get("SR_DB_PATH")
     db_path = str(tmp_path / "test.db")
     os.environ["SR_DB_PATH"] = db_path
     # Force reimport to pick up new path
@@ -30,7 +31,11 @@ def fresh_db(tmp_path):
     importlib.reload(position_profiles)
     init_db()
     yield
-    os.environ.pop("SR_DB_PATH", None)
+    if old_db_path is not None:
+        os.environ["SR_DB_PATH"] = old_db_path
+    else:
+        os.environ.pop("SR_DB_PATH", None)
+    importlib.reload(database)
 
 
 def _make_profile(**kwargs) -> PositionProfileCreate:

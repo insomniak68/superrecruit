@@ -6,10 +6,15 @@ import json
 import base64
 import time
 import unittest
+import pytest
 from unittest.mock import patch, MagicMock
 
 # Use temp DB
 os.environ["SR_DB_PATH"] = "/tmp/test_superrecruit_integ.db"
+
+import importlib
+import src.database
+importlib.reload(src.database)
 
 from fastapi.testclient import TestClient
 from src.main import app, ADMIN_SECRET
@@ -20,6 +25,20 @@ ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_SECRET}"}
 # Trigger startup
 with TestClient(app):
     pass
+
+
+@pytest.fixture(autouse=True)
+def ensure_integration_db():
+    """Ensure DB is pointing at the integration test DB and tables exist."""
+    import importlib
+    os.environ["SR_DB_PATH"] = "/tmp/test_superrecruit_integ.db"
+    import src.database
+    importlib.reload(src.database)
+    from src.database import init_db
+    from src.integrations import init_integration_tables
+    init_db()
+    init_integration_tables()
+    yield
 
 
 def _create_integration(name="TestPartner", webhook_url=None):

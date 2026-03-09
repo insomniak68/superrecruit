@@ -208,7 +208,8 @@ class TestWriteOutput:
             reader = csv.DictReader(f)
             row = next(reader)
         expected = {"filename", "candidate_name", "email", "skills_count",
-                    "avg_confidence", "top_skills", "tests_assigned", "status", "error"}
+                    "avg_confidence", "top_skills", "tests_assigned", "status", "error",
+                    "fit_score", "fit_level"}
         assert set(row.keys()) == expected
 
 

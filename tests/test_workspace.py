@@ -85,11 +85,11 @@ def test_add_skill_candidate_404():
     assert resp.status_code == 404
 
 
-@patch("src.workspace_agent.client")
-def test_chat_endpoint(mock_anthropic):
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="This candidate has strong Python skills.")]
-    mock_anthropic.messages.create.return_value = mock_response
+@patch("src.workspace_agent.get_client")
+def test_chat_endpoint(mock_get_client):
+    mock_llm = MagicMock()
+    mock_llm.complete.return_value = "This candidate has strong Python skills."
+    mock_get_client.return_value = mock_llm
 
     resp = client.post("/api/workspace/1/chat", json={"message": "Tell me about this candidate"})
     assert resp.status_code == 200
@@ -98,15 +98,15 @@ def test_chat_endpoint(mock_anthropic):
     assert isinstance(data["skills"], list)
 
 
-@patch("src.workspace_agent.client")
-def test_chat_with_actions(mock_anthropic):
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""I'll adjust the Python confidence.
+@patch("src.workspace_agent.get_client")
+def test_chat_with_actions(mock_get_client):
+    mock_llm = MagicMock()
+    mock_llm.complete.return_value = """I'll adjust the Python confidence.
 
 ```actions
 [{"action": "adjust_confidence", "skill_name": "Python", "confidence": 0.95}]
-```""")]
-    mock_anthropic.messages.create.return_value = mock_response
+```"""
+    mock_get_client.return_value = mock_llm
 
     resp = client.post("/api/workspace/1/chat", json={"message": "Increase Python confidence"})
     assert resp.status_code == 200
@@ -118,11 +118,11 @@ def test_chat_with_actions(mock_anthropic):
     assert float(skill["final_confidence"]) == pytest.approx(0.95, abs=0.01)
 
 
-@patch("src.workspace_agent.client")
-def test_chat_persists_conversation(mock_anthropic):
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="Hello!")]
-    mock_anthropic.messages.create.return_value = mock_response
+@patch("src.workspace_agent.get_client")
+def test_chat_persists_conversation(mock_get_client):
+    mock_llm = MagicMock()
+    mock_llm.complete.return_value = "Hello!"
+    mock_get_client.return_value = mock_llm
 
     client.post("/api/workspace/1/chat", json={"message": "Hi"})
 
