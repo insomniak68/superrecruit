@@ -397,12 +397,23 @@ def find_equivalents(skill_name: str, position_id: int = None, employer_prefs: d
     group_ids = list({r["group_id"] for r in rows})
     equivalents = []
     for gid in group_ids:
+        # Get the required skill's own weight in this group
+        required_row = conn.execute(
+            "SELECT weight FROM skill_equivalencies WHERE group_id=? AND LOWER(skill_name) = ?",
+            (gid, skill_lower),
+        ).fetchone()
+        required_weight = required_row["weight"] if required_row else 1.0
+
         skills = conn.execute(
             "SELECT skill_name, weight FROM skill_equivalencies WHERE group_id=? AND LOWER(skill_name) != ?",
             (gid, skill_lower),
         ).fetchall()
         for s in skills:
-            equivalents.append({"skill_name": s["skill_name"], "weight": s["weight"]})
+            # Relative weight: how well does this skill substitute for the required one
+            # If required=0.9 and candidate=1.0, relative = min(1.0/0.9, 1.0) = 1.0 (capped)
+            # If required=1.0 and candidate=0.8, relative = 0.8/1.0 = 0.8
+            relative = min(s["weight"] / required_weight, 1.0) if required_weight > 0 else s["weight"]
+            equivalents.append({"skill_name": s["skill_name"], "weight": round(relative, 3)})
 
     conn.close()
     return equivalents
